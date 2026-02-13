@@ -1,92 +1,235 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Master of Medicine (Rural) - Postgraduate Portfolio</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f8fafc; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .fade-in { animation: fadeIn 0.2s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* Sidebar transition for mobile */
-        #sidebar { transition: transform 0.3s ease-in-out; }
-        @media (max-width: 768px) {
-            #sidebar { transform: translateX(-100%); position: fixed; z-index: 50; }
-            #sidebar.open { transform: translateX(0); }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
         }
-        
+
+        ::-webkit-scrollbar-track {
+            background: #f8fafc;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.2s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Sidebar transition for mobile */
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        @media (max-width: 768px) {
+            #sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                z-index: 50;
+            }
+
+            #sidebar.open {
+                transform: translateX(0);
+            }
+        }
+
         @media print {
-            .no-print { display: none !important; }
-            body { background: white; font-size: 11pt; }
-            .shadow-sm { box-shadow: none; border: 1px solid #e2e8f0; }
-            main { margin-left: 0 !important; padding: 0 !important; max-width: 100% !important; }
-            table { page-break-after: auto; }
-            tr    { page-break-inside: avoid; page-break-after: auto; }
-            td    { page-break-inside: avoid; page-break-after: auto; }
-            thead { display: table-header-group; }
-            tfoot { display: table-footer-group; }
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white;
+                font-size: 11pt;
+            }
+
+            .shadow-sm {
+                box-shadow: none;
+                border: 1px solid #e2e8f0;
+            }
+
+            main {
+                margin-left: 0 !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+
+            table {
+                page-break-after: auto;
+            }
+
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+
+            td {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tfoot {
+                display: table-footer-group;
+            }
         }
     </style>
 </head>
+
 <body class="bg-slate-50 text-slate-800 font-sans flex min-h-screen">
 
+    <!-- Loading Overlay -->
+    <div id="loading"
+        class="fixed inset-0 bg-slate-900 bg-opacity-90 z-50 hidden flex-col items-center justify-center text-white space-y-4">
+        <i class="fas fa-circle-notch fa-spin text-4xl text-teal-400"></i>
+        <span class="font-medium tracking-wide">Syncing Data...</span>
+    </div>
+
+    <!-- Login Container -->
+    <div id="login-container" class="fixed inset-0 bg-slate-900 z-40 flex items-center justify-center p-4 hidden">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden fade-in">
+            <div class="bg-slate-800 p-8 text-center border-b border-slate-700">
+                <div
+                    class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-700 mb-4 ring-4 ring-slate-600">
+                    <i class="fas fa-user-md text-3xl text-teal-400"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white tracking-tight">MMed Rural Portfolio</h1>
+                <p class="text-slate-400 text-sm mt-1">Please sign in to continue</p>
+            </div>
+            <div class="p-8 space-y-6">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Email Address</label>
+                    <input type="email" id="login-email"
+                        class="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Password</label>
+                    <input type="password" id="login-password"
+                        class="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 transition-all">
+                </div>
+                <button onclick="state.signInEmail()"
+                    class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+                    Sign In with Email
+                </button>
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-slate-200"></div>
+                    <span class="flex-shrink-0 mx-4 text-slate-400 text-xs font-semibold uppercase">OR</span>
+                    <div class="flex-grow border-t border-slate-200"></div>
+                </div>
+                <button onclick="state.signInGoogle()"
+                    class="w-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-3 rounded-lg flex items-center justify-center gap-3 transition-colors">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5">
+                    Continue with Google
+                </button>
+            </div>
+            <div class="bg-slate-50 p-4 text-center text-xs text-slate-500 border-t border-slate-100">
+                Authorized Access Only &bull; Papua New Guinea Medical Board
+            </div>
+        </div>
+    </div>
+
     <!-- Mobile Overlay -->
-    <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-40 hidden md:hidden fade-in"></div>
+    <div id="mobile-overlay" onclick="toggleSidebar()"
+        class="fixed inset-0 bg-slate-900 bg-opacity-50 z-40 hidden md:hidden fade-in"></div>
 
     <!-- Sidebar -->
-    <aside id="sidebar" class="w-64 bg-slate-900 text-slate-300 flex flex-col min-h-screen shadow-xl no-print md:translate-x-0 fixed md:sticky top-0 h-screen overflow-y-auto">
+    <aside id="sidebar"
+        class="w-64 bg-slate-900 text-slate-300 flex flex-col min-h-screen shadow-xl no-print md:translate-x-0 fixed md:sticky top-0 h-screen overflow-y-auto">
         <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950">
             <div class="flex items-center gap-3">
                 <i class="fas fa-user-md text-teal-500 text-2xl"></i>
                 <h2 class="text-lg font-bold text-white tracking-tight">MMed Rural</h2>
             </div>
-            <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white"><i
+                    class="fas fa-times text-xl"></i></button>
         </div>
 
         <nav class="flex-1 px-4 py-6 space-y-1">
-            <button onclick="state.setTab('dashboard')" id="tab-dashboard" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-sm font-medium text-left">
+            <button onclick="state.setTab('dashboard')" id="tab-dashboard"
+                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-sm font-medium text-left">
                 <i class="fas fa-chart-pie w-5 text-center"></i> Dashboard
             </button>
-            <button onclick="state.setTab('master_logbook')" id="tab-master_logbook" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-sm font-medium text-left">
+            <button onclick="state.setTab('master_logbook')" id="tab-master_logbook"
+                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-sm font-medium text-left">
                 <i class="fas fa-clipboard-check w-5 text-center"></i> Master Logbook
             </button>
-            <button onclick="state.setTab('milestones')" id="tab-milestones" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-sm font-medium text-left">
+            <button onclick="state.setTab('milestones')" id="tab-milestones"
+                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-sm font-medium text-left">
                 <i class="fas fa-flag-checkered w-5 text-center"></i> Milestones & Courses
             </button>
 
             <div class="pt-6 pb-2">
                 <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Clinical Modules</p>
             </div>
-            
+
             <div id="module-nav-links" class="space-y-1">
                 <!-- Modules injected by JS -->
             </div>
         </nav>
 
         <div class="p-4 border-t border-slate-800 space-y-2">
-            <button onclick="state.exportData()" class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg transition-colors text-sm font-medium">
+            <button onclick="state.logout()"
+                class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors text-sm font-medium">
+                <i class="fas fa-sign-out-alt"></i> Sign Out
+            </button>
+            <button onclick="state.exportData()"
+                class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg transition-colors text-sm font-medium">
                 <i class="fas fa-download"></i> Backup Data
             </button>
+            <button onclick="state.importData()"
+                class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-lg transition-colors text-sm font-medium">
+                <i class="fas fa-upload"></i> Restore Backup
+            </button>
             <div class="text-center mt-2">
-                <span class="text-xs text-slate-500">Local Storage Mode</span>
+                <span class="text-xs text-slate-500">Cloud Sync Active</span>
             </div>
         </div>
     </aside>
 
     <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col min-h-screen w-full">
+    <div id="main-layout" class="flex-1 flex flex-col min-h-screen w-full hidden">
         <!-- Mobile Header -->
-        <header class="bg-teal-700 text-white shadow-md sticky top-0 z-30 md:hidden flex justify-between items-center p-4 no-print">
+        <header
+            class="bg-teal-700 text-white shadow-md sticky top-0 z-30 md:hidden flex justify-between items-center p-4 no-print">
             <div class="flex items-center gap-3">
-                <button onclick="toggleSidebar()" class="text-white focus:outline-none"><i class="fas fa-bars text-xl"></i></button>
+                <button onclick="toggleSidebar()" class="text-white focus:outline-none"><i
+                        class="fas fa-bars text-xl"></i></button>
                 <span class="font-bold">Portfolio</span>
             </div>
             <button onclick="window.print()"><i class="fas fa-print"></i></button>
@@ -98,7 +241,8 @@
     </div>
 
     <!-- Quick Log FAB -->
-    <button onclick="showQuickLogModal()" class="fixed bottom-6 right-6 w-14 h-14 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center text-2xl z-40 no-print hover:scale-105">
+    <button onclick="showQuickLogModal()"
+        class="fixed bottom-6 right-6 w-14 h-14 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center text-2xl z-40 no-print hover:scale-105">
         <i class="fas fa-plus"></i>
     </button>
 
@@ -106,12 +250,12 @@
         // --- 1. BYPASS OLD SERVICE WORKERS (Prevents blank screens on launch) ---
         try {
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                    for(let registration of registrations) {
+                navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                    for (let registration of registrations) {
                         registration.unregister();
                         console.log('Old ServiceWorker unregistered to ensure fresh load.');
                     }
-                }).catch(function(error) {
+                }).catch(function (error) {
                     console.log('Service Worker unregistration skipped due to environment state:', error);
                 });
             }
@@ -280,7 +424,7 @@
                     { id: 'w26', title: 'PPH Advanced' }, { id: 'w29', title: 'Destructive Delivery' }
                 ],
                 caseReports: [
-                    'Failure to progress in labour', 'Abnormal menstruation', 'Puerperal Sepsis', 
+                    'Failure to progress in labour', 'Abnormal menstruation', 'Puerperal Sepsis',
                     'Antepartum haemorrhage OR ectopic pregnancy', 'Postpartum haemorrhage', 'Gynaecological malignancy'
                 ],
                 assignmentList: [
@@ -339,13 +483,13 @@
                     { name: 'Lumbar puncture', target: 2 }
                 ]
             },
-            { 
-                id: 'psychiatry', name: 'Psychiatry (Module 6)', color: 'bg-purple-500', text: 'text-purple-500', border: 'border-purple-500', duration: '1 month', 
+            {
+                id: 'psychiatry', name: 'Psychiatry (Module 6)', color: 'bg-purple-500', text: 'text-purple-500', border: 'border-purple-500', duration: '1 month',
                 caseReports: ['Acute Psychosis (including post-partum psychosis)', 'Somatoform Disorder'],
                 requiredProcedures: []
             },
-            { 
-                id: 'publichealth', name: 'Public Health (Module 7)', color: 'bg-teal-500', text: 'text-teal-500', border: 'border-teal-500', duration: 'Longitudinal', 
+            {
+                id: 'publichealth', name: 'Public Health (Module 7)', color: 'bg-teal-500', text: 'text-teal-500', border: 'border-teal-500', duration: 'Longitudinal',
                 assignmentList: [
                     { title: 'Part A: District Health Report (3500 words)', prompt: 'Comprehensive analysis of district health geography, administration, and epidemiology' },
                     { title: 'Part B: Outbreak of Food Poisoning', prompt: 'Management at a residential institution' },
@@ -357,24 +501,27 @@
                 ],
                 requiredProcedures: []
             },
-            { 
-                id: 'eye_ent', name: 'Eye/ENT (Module 8)', color: 'bg-cyan-500', text: 'text-cyan-500', border: 'border-cyan-500', duration: '1 month', 
+            {
+                id: 'eye_ent', name: 'Eye/ENT (Module 8)', color: 'bg-cyan-500', text: 'text-cyan-500', border: 'border-cyan-500', duration: '1 month',
                 caseReports: ['Perforating eye injury', 'Acute red eye', 'Epistaxis', 'Chronic Suppurative Otitis Media'],
                 requiredProcedures: [
                     { name: 'Remove a foreign body from the eye', target: 2 }
                 ]
             },
-            { 
+            {
                 id: 'lab', name: 'Laboratory (Module 9)', color: 'bg-indigo-500', text: 'text-indigo-500', border: 'border-indigo-500', duration: '1 month',
-                assignmentList: ['Skill: Cross-match', 'Skill: Malaria Stain'],
+                assignmentList: [
+                    { title: 'Skill: Cross-match', prompt: 'Demonstrate competency in blood cross-matching procedures.' },
+                    { title: 'Skill: Malaria Stain', prompt: 'Demonstrate competency in preparing and reading malaria stains.' }
+                ],
                 requiredProcedures: [
                     { name: 'Blood grouping and cross-match', target: 4 }, { name: 'Finger prick BSL', target: 2 },
                     { name: 'Urine microscopy', target: 1 }, { name: 'Stool microscopy', target: 1 },
                     { name: 'HIV Rapid test', target: 2 }, { name: 'Giemsa stain', target: 2 }
                 ]
             },
-            { 
-                id: 'management', name: 'Management (Module 10)', color: 'bg-slate-600', text: 'text-slate-600', border: 'border-slate-600', duration: '4 weeks', 
+            {
+                id: 'management', name: 'Management (Module 10)', color: 'bg-slate-600', text: 'text-slate-600', border: 'border-slate-600', duration: '4 weeks',
                 assignmentList: [
                     { title: 'Management Systems at 3 Hospitals (3500 words)', prompt: 'Evaluate authority chains, legal basis, and decision making' }
                 ],
@@ -383,9 +530,9 @@
         ];
 
         const milestoneConfigs = {
-            research: [ { id: 'res_topic', label: 'Research Topic Approved' }, { id: 'res_data', label: 'Data Collection Completed' }, { id: 'res_submit', label: 'Research Submitted' }, { id: 'res_present', label: 'Research Presented' } ],
-            exams: [ { id: 'exam_part1', label: 'Part 1 Exam Passed' }, { id: 'exam_part2_written', label: 'Part 2 Written Passed' }, { id: 'exam_part2_clinical', label: 'Part 2 Clinical Passed' } ],
-            management: [ { id: 'mgmt_course', label: '4-Week Intensive Course Completed' }, { id: 'mgmt_assign', label: '3500 Word Assignment Completed' } ],
+            research: [{ id: 'res_topic', label: 'Research Topic Approved' }, { id: 'res_data', label: 'Data Collection Completed' }, { id: 'res_submit', label: 'Research Submitted' }, { id: 'res_present', label: 'Research Presented' }],
+            exams: [{ id: 'exam_part1', label: 'Part 1 Exam Passed' }, { id: 'exam_part2_written', label: 'Part 2 Written Passed' }, { id: 'exam_part2_clinical', label: 'Part 2 Clinical Passed' }],
+            management: [{ id: 'mgmt_course', label: '4-Week Intensive Course Completed' }, { id: 'mgmt_assign', label: '3500 Word Assignment Completed' }],
             short_courses: [
                 { id: 'sc_emst', label: 'Emergency Management Severe Trauma (EMST)' }, { id: 'sc_emsb', label: 'Emergency Management Severe Burns (EMSB)' },
                 { id: 'sc_ccrisp', label: 'Care of Critically Injured Surgical Patient (CCRISP)' }, { id: 'sc_us', label: 'Basic Ultrasonography' },
@@ -394,61 +541,171 @@
             ]
         };
 
-        // --- 3. STATE MANAGEMENT (with Safe Local Storage Loading) ---
+        // --- 3. STATE MANAGEMENT (with Firebase) ---
         class AppState {
             constructor() {
-                this.account = { name: "Dr. Trainee", year: 1, location: "Kundiawa General Hospital", lastBackup: Date.now() };
+                this.account = null; // Start null to force login
                 this.modules = {};
                 this.procedureLog = [];
                 this.milestones = {};
                 this.activeTab = 'dashboard';
                 this.listeners = [];
-                
+                this._loginHandled = false;
+
                 moduleConfigs.forEach(m => { this.modules[m.id] = { assignments: {}, weeks: {}, caseReports: {} }; });
+
+                this.initFirebase();
                 this.loadData();
+            }
+
+            initFirebase() {
+                const firebaseConfig = {
+                    apiKey: "AIzaSyBhEln9kmgq22NnNHI83eUH7_d6S4F1O5s",
+                    authDomain: "rural-mmed-logbook-3e095.firebaseapp.com",
+                    projectId: "rural-mmed-logbook-3e095",
+                    storageBucket: "rural-mmed-logbook-3e095.firebasestorage.app",
+                    messagingSenderId: "826477177641",
+                    appId: "1:826477177641:web:fe9de6e733b442fdffe538"
+                };
+
+                try {
+                    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                    window.auth = firebase.auth();
+                    window.db = firebase.firestore();
+
+                    // Guarded Redirect Check
+                    if (!window.auth.currentUser) {
+                        window.auth.getRedirectResult().then(result => {
+                            if (result.user) this.handleCloudLogin(result.user);
+                        }).catch(e => console.error("Redirect Error:", e));
+                    }
+
+                    window.auth.onAuthStateChanged(user => {
+                        if (user) this.handleCloudLogin(user);
+                        else {
+                            this.account = null;
+                            this.notify();
+                        }
+                    });
+                } catch (e) {
+                    console.error("Firebase Init Failed", e);
+                    // Fallback to local only for demo if offline
+                    const stored = localStorage.getItem('mmed_tracker_v2_cloud');
+                    if (stored) this.account = JSON.parse(stored).account;
+                }
+            }
+
+            async handleCloudLogin(user) {
+                if (this._loginHandled && this.account && this.account.id === user.uid) return;
+                this._loginHandled = true;
+
+                const loading = document.getElementById('loading');
+                if (loading) loading.style.display = 'flex';
+
+                try {
+                    const doc = await window.db.collection('users').doc(user.uid).get();
+                    const cloudData = doc.exists ? doc.data() : {};
+
+                    this.account = {
+                        name: cloudData.account?.name || user.displayName || "Dr. Trainee",
+                        email: user.email,
+                        id: user.uid,
+                        year: cloudData.account?.year || 1,
+                        location: cloudData.account?.location || "General Hospital",
+                        lastBackup: Date.now()
+                    };
+
+                    // Merge Module Data (Cloud wins if exists, else keep local/default)
+                    if (cloudData.modules) this.modules = cloudData.modules;
+                    if (cloudData.procedureLog) this.procedureLog = cloudData.procedureLog;
+                    if (cloudData.milestones) this.milestones = cloudData.milestones;
+
+                    this.saveData(true); // Save local copy
+                } catch (e) {
+                    console.error("Sync Error", e);
+                    // Fallback to offline user
+                    this.account = { name: user.displayName || "Dr. User", email: user.email, id: user.uid, year: 1, location: "Offline Mode" };
+                } finally {
+                    if (loading) loading.style.display = 'none';
+                    this.notify();
+                    // Force refresh to ensure UI updates
+                    if (document.getElementById('login-container')) document.getElementById('login-container').classList.add('hidden');
+                    if (document.getElementById('main-layout')) document.getElementById('main-layout').classList.remove('hidden');
+                }
             }
 
             loadData() {
                 try {
-                    const stored = localStorage.getItem('mmed_tracker_data_v2');
+                    const stored = localStorage.getItem('mmed_tracker_v2_cloud');
                     if (stored && stored !== "null") {
                         const data = JSON.parse(stored);
-                        
-                        // Carefully merge data to prevent older/incompatible versions from breaking the app
                         if (data && typeof data === 'object') {
-                            this.account = { ...this.account, ...(data.account || {}) };
-                            
-                            if (data.modules && typeof data.modules === 'object') {
-                                Object.keys(data.modules).forEach(k => {
-                                    if (this.modules[k]) {
-                                        this.modules[k] = { ...this.modules[k], ...data.modules[k] };
-                                    }
-                                });
-                            }
-                            
-                            if (Array.isArray(data.procedureLog)) {
-                                this.procedureLog = data.procedureLog;
-                            }
-                            
-                            if (data.milestones && typeof data.milestones === 'object') {
-                                this.milestones = data.milestones;
-                            }
+                            if (data.account) this.account = data.account;
+                            if (data.modules) this.modules = data.modules;
+                            if (data.procedureLog) this.procedureLog = data.procedureLog;
+                            if (data.milestones) this.milestones = data.milestones;
                         }
                     }
-                } catch (e) { 
-                    console.error("Data load failed, resetting storage format.", e); 
-                }
+                } catch (e) { console.error("Local Load Failed", e); }
             }
 
-            saveData() {
+            saveData(skipCloud = false) {
                 const data = { account: this.account, modules: this.modules, procedureLog: this.procedureLog, milestones: this.milestones };
-                localStorage.setItem('mmed_tracker_data_v2', JSON.stringify(data));
+                localStorage.setItem('mmed_tracker_v2_cloud', JSON.stringify(data));
+
+                if (!skipCloud && this.account && window.db && this.account.id) {
+                    clearTimeout(this._saveTimeout);
+                    this._saveTimeout = setTimeout(() => {
+                        window.db.collection('users').doc(this.account.id).set(data, { merge: true }).catch(e => console.error("Cloud Save Failing:", e));
+                    }, 1500);
+                }
                 this.notify();
             }
 
+            // Auth Actions
+            signInGoogle() {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                window.auth.signInWithPopup(provider)
+                    .then(r => this.handleCloudLogin(r.user))
+                    .catch(e => {
+                        console.warn("Popup blocked, trying redirect");
+                        window.auth.signInWithRedirect(provider);
+                    });
+            }
+
+            signInEmail() {
+                const e = document.getElementById('login-email').value;
+                const p = document.getElementById('login-password').value;
+                if (!e || !p) return alert("Please enter email and password");
+
+                const friendlyErrors = {
+                    'auth/wrong-password': 'Incorrect password. Please try again.',
+                    'auth/invalid-email': 'Please enter a valid email address.',
+                    'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
+                    'auth/user-disabled': 'This account has been disabled. Contact your administrator.',
+                    'auth/network-request-failed': 'Network error. Please check your internet connection.'
+                };
+
+                window.auth.signInWithEmailAndPassword(e, p).catch(err => {
+                    if (err.code === 'auth/user-not-found') {
+                        if (confirm("User not found. Register new account?")) {
+                            window.auth.createUserWithEmailAndPassword(e, p).then(r => this.handleCloudLogin(r.user));
+                        }
+                    } else alert(friendlyErrors[err.code] || err.message);
+                });
+            }
+
+            logout() {
+                this._loginHandled = false;
+                if (window.auth) window.auth.signOut();
+                this.account = null;
+                localStorage.removeItem('mmed_tracker_v2_cloud'); // Clear active session data
+                location.reload();
+            }
+
             exportData() {
-                const dataStr = localStorage.getItem('mmed_tracker_data_v2');
-                this.account.lastBackup = Date.now(); this.saveData();
+                this.saveData(true);
+                const dataStr = localStorage.getItem('mmed_tracker_v2_cloud');
                 const blob = new Blob([dataStr || "{}"], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -456,9 +713,40 @@
                 a.click(); URL.revokeObjectURL(url);
             }
 
+            importData() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        try {
+                            const data = JSON.parse(ev.target.result);
+                            if (!data || typeof data !== 'object') throw new Error('Invalid format');
+                            if (confirm('This will replace all current data with the backup. Are you sure?')) {
+                                if (data.account) this.account = data.account;
+                                if (data.modules) this.modules = data.modules;
+                                if (data.procedureLog) this.procedureLog = data.procedureLog;
+                                if (data.milestones) this.milestones = data.milestones;
+                                this.saveData();
+                                renderApp();
+                                alert('Backup restored successfully!');
+                            }
+                        } catch (err) {
+                            alert('Failed to restore backup: Invalid file format.');
+                            console.error('Import error:', err);
+                        }
+                    };
+                    reader.readAsText(file);
+                };
+                input.click();
+            }
+
             setTab(tab) {
                 this.activeTab = tab;
-                if(window.innerWidth <= 768) toggleSidebar();
+                if (window.innerWidth <= 768) toggleSidebar();
                 this.notify();
             }
 
@@ -476,25 +764,32 @@
                 this.saveData();
             }
 
-            addProcedure(data) { 
-                this.procedureLog.push({ ...data, timestamp: Date.now() }); 
-                this.saveData(); 
+            addProcedure(data) {
+                this.procedureLog.push({ ...data, timestamp: Date.now() });
+                this.saveData();
             }
 
             updateMilestone(category, id, value, date) {
                 if (!this.milestones[category]) this.milestones[category] = {};
-                this.milestones[category][id] = { status: value, date: date }; 
+                this.milestones[category][id] = { status: value, date: date };
                 this.saveData();
             }
-            
+
             notify() { this.listeners.forEach(l => l()); }
             subscribe(l) { this.listeners.push(l); }
         }
 
         const state = new AppState();
 
+        // HTML escape utility to prevent XSS
+        function esc(str) {
+            const el = document.createElement('span');
+            el.textContent = str || '';
+            return el.innerHTML;
+        }
+
         // --- 4. UI RENDERING FUNCTIONS ---
-        
+
         function renderSidebarLinks() {
             const container = document.getElementById('module-nav-links');
             container.innerHTML = moduleConfigs.map(m => `
@@ -503,11 +798,11 @@
                     <span class="truncate">${m.name.split(' (')[0]}</span>
                 </button>
             `).join('');
-            
+
             // Highlight active tab
             document.querySelectorAll('aside button').forEach(btn => {
                 btn.classList.remove('bg-slate-800', 'text-white', 'border-l-4', 'border-teal-500');
-                if(btn.id === `tab-${state.activeTab}`) {
+                if (btn.id === `tab-${state.activeTab}`) {
                     btn.classList.add('bg-slate-800', 'text-white', 'border-l-4', 'border-teal-500', 'pl-2');
                 }
             });
@@ -515,16 +810,16 @@
 
         function renderDashboard() {
             const totalProcedures = state.procedureLog.length;
-            const targetProcedures = moduleConfigs.reduce((acc,m) => acc + (m.requiredProcedures ? m.requiredProcedures.reduce((a,p)=>a+p.target, 0) : 0), 0);
-            const totalAssignments = Object.values(state.modules).reduce((acc,m) => acc + (m.assignments ? Object.values(m.assignments).filter(a=>a.dateSubmitted).length : 0), 0);
-            const targetAssignments = moduleConfigs.reduce((acc,m) => acc + (m.assignmentList ? m.assignmentList.length : 0), 0);
-            
+            const targetProcedures = moduleConfigs.reduce((acc, m) => acc + (m.requiredProcedures ? m.requiredProcedures.reduce((a, p) => a + p.target, 0) : 0), 0);
+            const totalAssignments = Object.values(state.modules).reduce((acc, m) => acc + (m.assignments ? Object.values(m.assignments).filter(a => a.dateSubmitted).length : 0), 0);
+            const targetAssignments = moduleConfigs.reduce((acc, m) => acc + (m.assignmentList ? m.assignmentList.length : 0), 0);
+
             const partText = state.account.year <= 3 ? 'Part 1 (Years 1-3)' : 'Part 2 (Years 4-6)';
-            
+
             return `
                 <div class="flex justify-between items-end mb-8 no-print">
                     <div>
-                        <h1 class="text-3xl font-bold text-slate-800 tracking-tight">Welcome, ${state.account.name}</h1>
+                        <h1 class="text-3xl font-bold text-slate-800 tracking-tight">Welcome, ${esc(state.account.name)}</h1>
                         <p class="text-slate-500 mt-1">MMed (Rural) &bull; Year ${state.account.year} &bull; <span class="font-medium text-teal-700">${partText}</span></p>
                     </div>
                 </div>
@@ -535,17 +830,17 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Name</label>
-                            <input type="text" value="${state.account.name || ''}" onchange="state.account.name=this.value; state.saveData(); renderApp();" class="w-full border border-slate-300 rounded p-2 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500">
+                            <input type="text" value="${esc(state.account.name || '')}" onchange="state.account.name=this.value; state.saveData(); renderApp();" class="w-full border border-slate-300 rounded p-2 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Current Year</label>
                             <select onchange="state.account.year=parseInt(this.value); state.saveData(); renderApp();" class="w-full border border-slate-300 rounded p-2 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500">
-                                ${[1,2,3,4,5,6].map(y => `<option value="${y}" ${state.account.year===y?'selected':''}>Year ${y}</option>`).join('')}
+                                ${[1, 2, 3, 4, 5, 6].map(y => `<option value="${y}" ${state.account.year === y ? 'selected' : ''}>Year ${y}</option>`).join('')}
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Current Hospital</label>
-                            <input type="text" placeholder="e.g. Kundiawa, Sir Joseph Nombri" value="${state.account.location || ''}" onchange="state.account.location=this.value; state.saveData(); renderApp();" class="w-full border border-slate-300 rounded p-2 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500">
+                            <input type="text" placeholder="e.g. Kundiawa, Sir Joseph Nombri" value="${esc(state.account.location || '')}" onchange="state.account.location=this.value; state.saveData(); renderApp();" class="w-full border border-slate-300 rounded p-2 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500">
                         </div>
                     </div>
                 </div>
@@ -572,11 +867,11 @@
                         <h3 class="font-bold text-slate-800"><i class="fas fa-history text-teal-600 mr-2"></i>Recent Clinical Logs</h3>
                     </div>
                     <div class="divide-y divide-slate-100">
-                        ${state.procedureLog.slice().reverse().slice(0,5).map(p => `
+                        ${state.procedureLog.slice().reverse().slice(0, 5).map(p => `
                             <div class="px-6 py-4 hover:bg-slate-50 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                                 <div>
-                                    <div class="font-bold text-slate-800">${p.procedure}</div>
-                                    <div class="text-sm text-slate-500">Module: ${moduleConfigs.find(m=>m.id===p.moduleId)?.name || 'General'} &bull; Supervisor: ${p.supervisor}</div>
+                                    <div class="font-bold text-slate-800">${esc(p.procedure)}</div>
+                                    <div class="text-sm text-slate-500">Module: ${moduleConfigs.find(m => m.id === p.moduleId)?.name || 'General'} &bull; Supervisor: ${esc(p.supervisor)}</div>
                                 </div>
                                 <div class="text-sm font-medium text-slate-500 flex items-center gap-1">
                                     <i class="far fa-calendar-alt"></i> ${p.date}
@@ -603,21 +898,21 @@
                             </div>
                             <div class="divide-y divide-slate-100">
                                 ${milestoneConfigs[cat].map(m => {
-                                    const mData = state.milestones[cat] && state.milestones[cat][m.id] ? state.milestones[cat][m.id] : {};
-                                    const isDone = mData.status === 'Done' || mData.status === 'Passed';
-                                    return `
+                const mData = state.milestones[cat] && state.milestones[cat][m.id] ? state.milestones[cat][m.id] : {};
+                const isDone = mData.status === 'Done' || mData.status === 'Passed';
+                return `
                                         <div class="p-4 sm:px-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 transition-colors ${isDone ? 'bg-green-50' : 'hover:bg-slate-50'}">
                                             <span class="font-semibold ${isDone ? 'text-green-800' : 'text-slate-700'}">${m.label}</span>
                                             <div class="flex items-center gap-3">
                                                 <select onchange="state.updateMilestone('${cat}','${m.id}',this.value, this.nextElementSibling.value)" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium outline-none focus:ring-2 focus:ring-teal-500 ${isDone ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-600'}">
                                                     <option value="Not Started" ${!isDone ? 'selected' : ''}>Pending</option>
-                                                    <option value="${cat==='exams'?'Passed':'Done'}" ${isDone ? 'selected' : ''}>${cat==='exams'?'Passed':'Done'}</option>
+                                                    <option value="${cat === 'exams' ? 'Passed' : 'Done'}" ${isDone ? 'selected' : ''}>${cat === 'exams' ? 'Passed' : 'Done'}</option>
                                                 </select>
-                                                <input type="date" value="${mData.date||''}" onchange="state.updateMilestone('${cat}','${m.id}',this.previousElementSibling.value,this.value)" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+                                                <input type="date" value="${mData.date || ''}" onchange="state.updateMilestone('${cat}','${m.id}',this.previousElementSibling.value,this.value)" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500 bg-white">
                                             </div>
                                         </div>
                                     `;
-                                }).join('')}
+            }).join('')}
                             </div>
                         </div>
                     `).join('')}
@@ -640,8 +935,8 @@
                 <div class="hidden print:block p-6 text-center border-b border-slate-200 bg-white mb-6">
                     <h2 class="text-2xl font-bold text-slate-800 uppercase tracking-widest">Master Logbook Summary</h2>
                     <div class="mt-4 flex justify-between text-left border border-slate-300 p-4 rounded-lg bg-slate-50 text-sm">
-                        <div><p><strong>Trainee:</strong> ${state.account.name}</p><p><strong>Year of Training:</strong> Year ${state.account.year}</p></div>
-                        <div class="text-right"><p><strong>Current Hospital:</strong> ${state.account.location || '-'}</p></div>
+                        <div><p><strong>Trainee:</strong> ${esc(state.account.name)}</p><p><strong>Year of Training:</strong> Year ${state.account.year}</p></div>
+                        <div class="text-right"><p><strong>Current Hospital:</strong> ${esc(state.account.location) || '-'}</p></div>
                     </div>
                 </div>
 
@@ -651,10 +946,10 @@
                             <h3 class="font-bold ${m.text} mb-4 pb-2 border-b border-slate-100">${m.name}</h3>
                             <div class="space-y-3">
                                 ${m.requiredProcedures.map(req => {
-                                    const count = state.procedureLog.filter(p => p.moduleId === m.id && p.procedure === req.name).length;
-                                    const isDone = count >= req.target;
-                                    const pct = Math.min(100, Math.round((count/req.target)*100));
-                                    return `
+                const count = state.procedureLog.filter(p => p.moduleId === m.id && p.procedure === req.name).length;
+                const isDone = count >= req.target;
+                const pct = Math.min(100, Math.round((count / req.target) * 100));
+                return `
                                         <div class="text-sm">
                                             <div class="flex justify-between items-center mb-1">
                                                 <span class="font-medium ${isDone ? 'text-green-700' : 'text-slate-700'}">${req.name}</span>
@@ -665,7 +960,7 @@
                                             </div>
                                         </div>
                                     `;
-                                }).join('')}
+            }).join('')}
                             </div>
                         </div>
                     `).join('')}
@@ -683,7 +978,7 @@
                     <h1 class="text-3xl font-bold tracking-tight">${config.name}</h1>
                     <div class="flex gap-4 mt-3 text-white/80 text-sm font-medium">
                         <span><i class="far fa-clock mr-1"></i> ${config.duration}</span>
-                        ${config.requiredProcedures ? `<span><i class="fas fa-notes-medical mr-1"></i> ${config.requiredProcedures.reduce((a,r)=>a+r.target,0)} Required Procedures</span>` : ''}
+                        ${config.requiredProcedures ? `<span><i class="fas fa-notes-medical mr-1"></i> ${config.requiredProcedures.reduce((a, r) => a + r.target, 0)} Required Procedures</span>` : ''}
                     </div>
                 </div>
 
@@ -692,27 +987,27 @@
                         <h3 class="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Weekly Clinical Schedule</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             ${config.weeks.map(w => {
-                                const wData = (data.weeks && data.weeks[w.id]) || {};
-                                const wStatus = wData.status || 'Not Started';
-                                const statusColor = wStatus === 'Completed' ? 'bg-green-50 border-green-200' : wStatus === 'Pending' ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200';
-                                
-                                return `
+                const wData = (data.weeks && data.weeks[w.id]) || {};
+                const wStatus = wData.status || 'Not Started';
+                const statusColor = wStatus === 'Completed' ? 'bg-green-50 border-green-200' : wStatus === 'Pending' ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200';
+
+                return `
                                     <div class="${statusColor} border rounded-lg p-4 transition-colors">
                                         <div class="flex justify-between items-start gap-2 mb-3">
                                             <div class="font-semibold text-slate-800 text-sm leading-tight"><span class="${config.text} mr-1">${w.id.toUpperCase()}</span> ${w.title}</div>
-                                            <select onchange="state.updateModuleData('${moduleId}','week','${w.id}',{status:this.value})" class="text-xs font-bold rounded px-2 py-1 outline-none border border-slate-300 ${wStatus==='Completed'?'bg-green-600 text-white':wStatus==='Pending'?'bg-amber-500 text-white':'bg-white text-slate-600'}">
-                                                <option value="Not Started" ${wStatus==='Not Started'?'selected':''}>Not Started</option>
-                                                <option value="Pending" ${wStatus==='Pending'?'selected':''}>Pending</option>
-                                                <option value="Completed" ${wStatus==='Completed'?'selected':''}>Completed</option>
+                                            <select onchange="state.updateModuleData('${moduleId}','week','${w.id}',{status:this.value})" class="text-xs font-bold rounded px-2 py-1 outline-none border border-slate-300 ${wStatus === 'Completed' ? 'bg-green-600 text-white' : wStatus === 'Pending' ? 'bg-amber-500 text-white' : 'bg-white text-slate-600'}">
+                                                <option value="Not Started" ${wStatus === 'Not Started' ? 'selected' : ''}>Not Started</option>
+                                                <option value="Pending" ${wStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+                                                <option value="Completed" ${wStatus === 'Completed' ? 'selected' : ''}>Completed</option>
                                             </select>
                                         </div>
                                         <div class="flex items-center gap-3 text-xs">
-                                            <div class="flex items-center gap-1"><span class="text-slate-500">Start:</span><input type="date" value="${wData.startDate||''}" onchange="state.updateModuleData('${moduleId}', 'week', '${w.id}', {startDate: this.value ${wStatus === 'Not Started' ? `, status: 'Pending'` : ''}})" class="border border-slate-300 rounded px-1.5 py-1 bg-white/50 w-full max-w-[110px]"></div>
-                                            <div class="flex items-center gap-1"><span class="text-slate-500">End:</span><input type="date" value="${wData.completeDate||''}" onchange="state.updateModuleData('${moduleId}', 'week', '${w.id}', {completeDate: this.value, status: 'Completed'})" class="border border-slate-300 rounded px-1.5 py-1 bg-white/50 w-full max-w-[110px]"></div>
+                                            <div class="flex items-center gap-1"><span class="text-slate-500">Start:</span><input type="date" value="${wData.startDate || ''}" onchange="state.updateModuleData('${moduleId}', 'week', '${w.id}', {startDate: this.value ${wStatus === 'Not Started' ? `, status: 'Pending'` : ''}})" class="border border-slate-300 rounded px-1.5 py-1 bg-white/50 w-full max-w-[110px]"></div>
+                                            <div class="flex items-center gap-1"><span class="text-slate-500">End:</span><input type="date" value="${wData.completeDate || ''}" onchange="state.updateModuleData('${moduleId}', 'week', '${w.id}', {completeDate: this.value, status: 'Completed'})" class="border border-slate-300 rounded px-1.5 py-1 bg-white/50 w-full max-w-[110px]"></div>
                                         </div>
                                     </div>
                                 `;
-                            }).join('')}
+            }).join('')}
                         </div>
                     </div>
                 ` : ''}
@@ -722,9 +1017,9 @@
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 self-start">
                             <h3 class="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Case Reports</h3>
                             <div class="space-y-2">
-                                ${config.caseReports.map((cr,i) => {
-                                    const isDone = data.caseReports && data.caseReports['cr_'+i] === 'Done';
-                                    return `
+                                ${config.caseReports.map((cr, i) => {
+                const isDone = data.caseReports && data.caseReports['cr_' + i] === 'Done';
+                return `
                                         <button onclick="state.updateModuleData('${moduleId}','caseReport','cr_${i}','${isDone ? '' : 'Done'}')" class="w-full flex items-center justify-between p-3 rounded-lg border transition-all ${isDone ? 'bg-green-50 border-green-200 text-green-800' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-600'}">
                                             <span class="font-medium text-sm text-left">${cr}</span>
                                             <div class="w-5 h-5 rounded border flex items-center justify-center shrink-0 ml-2 ${isDone ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300'}">
@@ -732,7 +1027,7 @@
                                             </div>
                                         </button>
                                     `;
-                                }).join('')}
+            }).join('')}
                             </div>
                         </div>
                     ` : '<div></div>'}
@@ -741,27 +1036,27 @@
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                             <h3 class="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Assignments</h3>
                             <div class="space-y-4">
-                                ${config.assignmentList.map((a,i) => {
-                                    const aData = (data.assignments && data.assignments['a_'+i]) || {};
-                                    const title = typeof a === 'string' ? a : a.title;
-                                    const prompt = typeof a === 'string' ? '' : a.prompt;
-                                    return `
+                                ${config.assignmentList.map((a, i) => {
+                const aData = (data.assignments && data.assignments['a_' + i]) || {};
+                const title = typeof a === 'string' ? a : a.title;
+                const prompt = typeof a === 'string' ? '' : a.prompt;
+                return `
                                         <div class="p-4 rounded-lg border border-slate-100 bg-slate-50">
                                             <h4 class="font-bold text-slate-800 text-sm">${title}</h4>
                                             ${prompt ? `<p class="text-xs text-slate-500 mt-1 mb-3 leading-relaxed">${prompt}</p>` : ''}
                                             <div class="grid grid-cols-2 gap-3 mt-3">
                                                 <div>
                                                     <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Started</label>
-                                                    <input type="date" value="${aData.dateStarted||''}" onchange="state.updateModuleData('${moduleId}','assignment','a_${i}',{dateStarted:this.value})" class="w-full text-xs border border-slate-300 rounded p-1.5 outline-none focus:border-teal-500">
+                                                    <input type="date" value="${aData.dateStarted || ''}" onchange="state.updateModuleData('${moduleId}','assignment','a_${i}',{dateStarted:this.value})" class="w-full text-xs border border-slate-300 rounded p-1.5 outline-none focus:border-teal-500">
                                                 </div>
                                                 <div>
                                                     <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Submitted</label>
-                                                    <input type="date" value="${aData.dateSubmitted||''}" onchange="state.updateModuleData('${moduleId}','assignment','a_${i}',{dateSubmitted:this.value})" class="w-full text-xs border border-slate-300 rounded p-1.5 outline-none focus:border-teal-500">
+                                                    <input type="date" value="${aData.dateSubmitted || ''}" onchange="state.updateModuleData('${moduleId}','assignment','a_${i}',{dateSubmitted:this.value})" class="w-full text-xs border border-slate-300 rounded p-1.5 outline-none focus:border-teal-500">
                                                 </div>
                                             </div>
                                         </div>
                                     `;
-                                }).join('')}
+            }).join('')}
                             </div>
                         </div>
                     ` : ''}
@@ -772,10 +1067,10 @@
                         <h3 class="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Required Procedures Checklist</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                             ${config.requiredProcedures.map(req => {
-                                const count = logs.filter(p => p.procedure === req.name).length;
-                                const isDone = count >= req.target;
-                                const pct = Math.min(100, Math.round((count/req.target)*100));
-                                return `
+                const count = logs.filter(p => p.procedure === req.name).length;
+                const isDone = count >= req.target;
+                const pct = Math.min(100, Math.round((count / req.target) * 100));
+                return `
                                     <div class="border rounded-lg p-3 ${isDone ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}">
                                         <div class="flex justify-between items-start mb-1.5">
                                             <span class="text-xs font-semibold leading-tight pr-2 ${isDone ? 'text-green-800' : 'text-slate-700'}">${req.name}</span>
@@ -786,7 +1081,7 @@
                                         </div>
                                     </div>
                                 `;
-                            }).join('')}
+            }).join('')}
                         </div>
                     </div>
                 ` : ''}
@@ -808,11 +1103,11 @@
                         <h3 class="text-lg font-semibold text-slate-600 mt-1">Clinical Procedure Logbook</h3>
                         <div class="mt-6 flex justify-between text-left border border-slate-300 p-4 rounded-lg bg-slate-50 text-sm">
                             <div>
-                                <p><strong>Trainee:</strong> ${state.account.name}</p>
+                                <p><strong>Trainee:</strong> ${esc(state.account.name)}</p>
                                 <p><strong>Year of Training:</strong> Year ${state.account.year} (${state.account.year <= 3 ? 'Part 1' : 'Part 2'})</p>
                             </div>
                             <div class="text-right">
-                                <p><strong>Current Hospital/Location:</strong> ${state.account.location || '_________________________'}</p>
+                                <p><strong>Current Hospital/Location:</strong> ${esc(state.account.location) || '_________________________'}</p>
                             </div>
                         </div>
                     </div>
@@ -830,10 +1125,10 @@
                         <tbody class="divide-y divide-slate-100">
                             ${logs.map(p => `
                                 <tr class="hover:bg-slate-50 print:h-20 break-inside-avoid">
-                                    <td class="px-6 py-3 whitespace-nowrap text-slate-600 align-middle print:align-bottom print:pb-6">${p.date}</td>
-                                    <td class="px-6 py-3 font-medium text-slate-800 align-middle print:align-bottom print:pb-6">${p.procedure}</td>
-                                    <td class="px-6 py-3 text-slate-600 align-middle print:align-bottom print:pb-6 text-xs">${p.location || '-'}</td>
-                                    <td class="px-6 py-3 text-slate-600 align-middle print:align-bottom print:pb-6">${p.supervisor}</td>
+                                    <td class="px-6 py-3 whitespace-nowrap text-slate-600 align-middle print:align-bottom print:pb-6">${esc(p.date)}</td>
+                                    <td class="px-6 py-3 font-medium text-slate-800 align-middle print:align-bottom print:pb-6">${esc(p.procedure)}</td>
+                                    <td class="px-6 py-3 text-slate-600 align-middle print:align-bottom print:pb-6 text-xs">${esc(p.location) || '-'}</td>
+                                    <td class="px-6 py-3 text-slate-600 align-middle print:align-bottom print:pb-6">${esc(p.supervisor)}</td>
                                     <td class="px-6 py-3 align-middle print:align-bottom">
                                         <!-- Physical signature line visible only on print -->
                                         <div class="hidden print:block border-b-2 border-slate-400 w-full mb-6"></div>
@@ -849,14 +1144,14 @@
         }
 
         // --- 5. CORE INTERACTION FUNCTIONS ---
-        
+
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
             document.getElementById('mobile-overlay').classList.toggle('hidden');
         }
 
         function deleteProcedure(timestamp) {
-            if(confirm("Delete this log entry?")) {
+            if (confirm("Delete this log entry?")) {
                 state.procedureLog = state.procedureLog.filter(p => p.timestamp !== timestamp);
                 state.saveData();
                 renderApp();
@@ -877,9 +1172,9 @@
             const modal = document.createElement('div');
             modal.id = 'quickLogModal';
             modal.className = 'fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center p-4 fade-in backdrop-blur-sm';
-            
-            const lastSup = state.procedureLog.length > 0 ? state.procedureLog[state.procedureLog.length-1].supervisor : '';
-            
+
+            const lastSup = state.procedureLog.length > 0 ? state.procedureLog[state.procedureLog.length - 1].supervisor : '';
+
             modal.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
                     <div class="px-6 py-4 bg-teal-50 border-b border-teal-100 flex justify-between items-center">
@@ -892,7 +1187,7 @@
                                 <label class="block text-sm font-semibold text-slate-700 mb-1">Module</label>
                                 <select name="module" required onchange="updateProcList(this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500">
                                     <option value="" disabled selected>Select Module</option>
-                                    ${moduleConfigs.map(m=>`<option value="${m.id}" ${state.activeTab===m.id?'selected':''}>${m.name.split(' (')[0]}</option>`).join('')}
+                                    ${moduleConfigs.map(m => `<option value="${m.id}" ${state.activeTab === m.id ? 'selected' : ''}>${m.name.split(' (')[0]}</option>`).join('')}
                                 </select>
                             </div>
                             <div>
@@ -909,11 +1204,11 @@
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-1">Location/Hospital</label>
-                                <input type="text" name="location" placeholder="e.g. Kundiawa" value="${state.account.location || ''}" required class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500">
+                                <input type="text" name="location" placeholder="e.g. Kundiawa" value="${esc(state.account.location || '')}" required class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-1">Supervisor</label>
-                                <input type="text" name="supervisor" placeholder="Dr. Name" value="${lastSup}" required class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500">
+                                <input type="text" name="supervisor" placeholder="Dr. Name" value="${esc(lastSup)}" required class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500">
                             </div>
                         </div>
                         <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-lg mt-2 shadow-md transition">Save Log Entry</button>
@@ -922,7 +1217,7 @@
             `;
             document.body.appendChild(modal);
             modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-            
+
             // Auto populate list if a tab is already selected
             if (state.activeTab && moduleConfigs.find(m => m.id === state.activeTab)) {
                 updateProcList(state.activeTab);
@@ -931,45 +1226,59 @@
         }
 
         window.submitQuickLog = form => {
-            state.addProcedure({ 
-                moduleId: form.module.value, 
-                date: form.date.value, 
-                procedure: form.procedure.value, 
+            state.addProcedure({
+                moduleId: form.module.value,
+                date: form.date.value,
+                procedure: form.procedure.value,
                 location: form.location.value,
-                supervisor: form.supervisor.value 
+                supervisor: form.supervisor.value
             });
             document.getElementById('quickLogModal').remove();
-            
+
             // Toast
             const toast = document.createElement('div');
             toast.innerHTML = `<div class="bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl font-medium border border-slate-700 flex items-center gap-3"><i class="fas fa-check-circle text-green-400"></i> Procedure Logged Successfully</div>`;
             toast.className = 'fixed bottom-24 right-6 z-50 fade-in';
             document.body.appendChild(toast);
-            setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity 0.5s'; setTimeout(()=>toast.remove(), 500); }, 2500);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 2500);
             renderApp();
         };
 
-        // --- 6. SAFE RENDERER (With Crash Recovery) ---
+        // --- 6. SAFE RENDERER (With Auth Gate) ---
         function renderApp() {
             try {
+                const loginContainer = document.getElementById('login-container');
+                const mainLayout = document.getElementById('main-layout');
+                const fab = document.querySelector('button[onclick="showQuickLogModal()"]');
+
+                if (!state.account) {
+                    if (loginContainer) loginContainer.classList.remove('hidden');
+                    if (mainLayout) mainLayout.classList.add('hidden');
+                    if (fab) fab.classList.add('hidden');
+                    return;
+                }
+
+                // Logged In
+                if (loginContainer) loginContainer.classList.add('hidden');
+                if (mainLayout) mainLayout.classList.remove('hidden');
+                if (fab) fab.classList.remove('hidden');
+
                 renderSidebarLinks();
                 const container = document.getElementById('app-container');
-                
+
                 if (state.activeTab === 'dashboard') container.innerHTML = renderDashboard();
                 else if (state.activeTab === 'milestones') container.innerHTML = renderMilestones();
                 else if (state.activeTab === 'master_logbook') container.innerHTML = renderMasterLogbook();
                 else container.innerHTML = renderModuleDetail(state.activeTab);
-                
-                window.scrollTo(0,0);
+
+                window.scrollTo(0, 0);
             } catch (error) {
                 console.error("Render error:", error);
                 document.getElementById('app-container').innerHTML = `
                     <div class="p-8 text-center max-w-lg mx-auto mt-12 bg-white rounded-2xl shadow-xl border border-slate-200">
                         <div class="text-rose-500 text-5xl mb-4"><i class="fas fa-exclamation-triangle"></i></div>
                         <h2 class="text-2xl font-bold text-slate-800 mb-2">Something went wrong</h2>
-                        <p class="text-slate-600 mb-6">Your browser has saved data from an older, incompatible version of the tracker. This is preventing the new app from loading.</p>
-                        <button onclick="localStorage.removeItem('mmed_tracker_data_v2'); window.location.reload();" class="bg-rose-600 text-white px-6 py-3 rounded-lg font-bold shadow-md hover:bg-rose-700 transition w-full">Clear Old Data & Reload App</button>
-                        <p class="text-xs text-slate-400 mt-4 text-left p-3 bg-slate-50 rounded border border-slate-100 overflow-hidden truncate">Error: ${error.message}</p>
+                        <button onclick="localStorage.clear(); window.location.reload();" class="bg-rose-600 text-white px-6 py-3 rounded-lg font-bold shadow-md hover:bg-rose-700 transition w-full">Reset App Data</button>
                     </div>
                 `;
             }
@@ -981,4 +1290,5 @@
 
     </script>
 </body>
+
 </html>
