@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master of Medicine (Rural) - Postgraduate Portfolio</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .fade-in { animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        #sidebar { transition: transform 0.3s ease-in-out; }
+        @media (max-width: 768px) {
+            #sidebar { transform: translateX(-100%); position: fixed; z-index: 50; }
+            #sidebar.open { transform: translateX(0); }
+        }
+        .section-collapsed .section-chevron { transform: rotate(-90deg); }
+        #agent-chat-history::-webkit-scrollbar { width: 4px; }
+        #agent-chat-history::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; font-size: 11pt; }
+            main { margin-left: 0 !important; padding: 0 !important; max-width: 100% !important; }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-sans flex min-h-screen">
+
+    <div id="loading" class="fixed inset-0 bg-slate-900 bg-opacity-90 z-50 hidden flex-col items-center justify-center text-white space-y-4">
+        <i class="fas fa-circle-notch fa-spin text-4xl text-teal-400"></i>
+        <span class="font-medium tracking-wide">Syncing Data...</span>
+    </div>
+
+    <div id="backupModal" class="fixed inset-0 bg-slate-900 bg-opacity-90 z-50 hidden flex items-center justify-center p-4 fade-in backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-slate-800"><i class="fas fa-cloud-upload-alt text-teal-500 mr-2"></i>Backup</h2>
+                <button onclick="document.getElementById('backupModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-6 space-y-6">
+                <button onclick="state.backupToDrive()" class="w-full group flex items-center p-4 border-2 rounded-xl hover:border-teal-500 hover:bg-teal-50 transition-all text-left">
+                    <div class="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0"><i class="fab fa-google-drive text-2xl text-teal-600"></i></div>
+                    <div class="ml-4"><h3 class="font-bold text-slate-800">Google Drive Backup</h3><p class="text-xs text-slate-500">Save to cloud.</p></div>
+                </button>
+                <div class="relative flex py-2 items-center"><div class="flex-grow border-t border-slate-200"></div><span class="mx-4 text-slate-400 text-xs uppercase">OR</span><div class="flex-grow border-t border-slate-200"></div></div>
+                <button onclick="state.exportData()" class="w-full group flex items-center p-4 border-2 rounded-xl hover:border-amber-500 hover:bg-amber-50 transition-all text-left">
+                    <div class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0"><i class="fas fa-file-download text-2xl text-amber-600"></i></div>
+                    <div class="ml-4"><h3 class="font-bold text-slate-800">Download File</h3><p class="text-xs text-slate-500">Save .json file.</p></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-container" class="fixed inset-0 bg-slate-900 z-40 flex items-center justify-center p-4 hidden">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden fade-in">
+            <div class="bg-slate-800 p-8 text-center border-b border-slate-700">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-700 mb-4 ring-4 ring-slate-600"><i class="fas fa-user-md text-3xl text-teal-400"></i></div>
+                <h1 class="text-2xl font-bold text-white tracking-tight">MMed Rural Portfolio</h1>
+                <p id="login-subtitle" class="text-slate-400 text-sm mt-1">Please sign in</p>
+            </div>
+            <div class="p-8 space-y-6">
+                <div id="signup-name-field" class="hidden">
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Full Name</label>
+                    <input type="text" id="login-name" placeholder="Dr. John Doe" class="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Email Address</label>
+                    <input type="email" id="login-email" class="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-teal-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Password</label>
+                    <div class="relative">
+                        <input type="password" id="login-password" placeholder="Min. 6 characters" class="w-full border border-slate-300 rounded-lg px-4 py-3 pr-12 outline-none focus:border-teal-500">
+                        <button type="button" onclick="togglePassword('login-password', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-eye"></i></button>
+                    </div>
+                </div>
+                <div id="confirm-password-field" class="hidden">
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Confirm Password</label>
+                    <input type="password" id="login-confirm-password" class="w-full border border-slate-300 rounded-lg px-4 py-3 pr-12 outline-none focus:border-teal-500">
+                </div>
+                <div id="login-error" class="hidden text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-4 py-3"></div>
+                <button id="auth-submit-btn" onclick="state.signInEmail()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-lg shadow-lg">Sign In</button>
+                <p id="auth-toggle" class="text-center text-sm text-slate-500">Don't have an account? <a href="#" onclick="toggleAuthMode(event)" class="text-teal-600 font-semibold hover:text-teal-700">Sign Up</a></p>
+                <div class="relative flex py-2 items-center"><div class="flex-grow border-t border-slate-200"></div><span class="mx-4 text-slate-400 text-xs uppercase">OR</span><div class="flex-grow border-t border-slate-200"></div></div>
+                <button onclick="state.signInGoogle()" class="w-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-3 rounded-lg flex items-center justify-center gap-3">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5"> Continue with Google
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-40 hidden md:hidden fade-in"></div>
+
+    <aside id="sidebar" class="w-64 bg-slate-900 text-slate-300 flex flex-col min-h-screen shadow-xl no-print md:translate-x-0 fixed md:sticky top-0 h-screen overflow-y-auto">
+        <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+            <div class="flex items-center gap-3"><i class="fas fa-user-md text-teal-500 text-2xl"></i><h2 class="text-lg font-bold text-white tracking-tight">MMed Rural</h2></div>
+            <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-1">
+            <button onclick="state.setTab('dashboard')" id="tab-dashboard" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-sm font-medium text-left"><i class="fas fa-chart-pie w-5 text-center"></i> Dashboard</button>
+            <button onclick="state.setTab('master_logbook')" id="tab-master_logbook" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-sm font-medium text-left"><i class="fas fa-clipboard-check w-5 text-center"></i> Master Logbook</button>
+            <button onclick="state.setTab('milestones')" id="tab-milestones" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-sm font-medium text-left"><i class="fas fa-flag-checkered w-5 text-center"></i> Milestones</button>
+            <div class="pt-6 pb-2"><p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Clinical Modules</p></div>
+            <div id="module-nav-links" class="space-y-1"></div>
+        </nav>
+        <div class="p-4 border-t border-slate-800 space-y-2">
+            <button onclick="state.logout()" class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors text-sm font-medium"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+            <button onclick="showBackupModal()" class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg transition-colors text-sm font-medium"><i class="fas fa-download"></i> Backup</button>
+        </div>
+    </aside>
+
+    <div id="main-layout" class="flex-1 flex flex-col min-h-screen w-full hidden">
+        <header class="bg-teal-700 text-white shadow-md sticky top-0 z-30 md:hidden flex justify-between items-center p-4 no-print">
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="text-white focus:outline-none"><i class="fas fa-bars text-xl"></i></button><span class="font-bold">Portfolio</span></div>
+        </header>
+        <main id="app-container" class="flex-1 p-4 md:p-8 lg:px-16 w-full max-w-7xl mx-auto fade-in"></main>
+    </div>
+
+    <button onclick="showQuickLogModal()" class="fixed bottom-6 right-6 w-14 h-14 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center text-2xl z-40 no-print hover:scale-105"><i class="fas fa-plus"></i></button>
+
+    <!-- AGENT UI -->
+    <div id="agent-bubble" class="fixed bottom-6 left-6 z-50 no-print hidden">
+        <button onclick="toggleAgentChat()" class="w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center text-xl group relative">
+            <i class="fas fa-robot"></i>
+            <span class="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white animate-pulse"></span>
+        </button>
+    </div>
+    <div id="agent-window" class="fixed bottom-24 left-6 w-96 max-w-[calc(100vw-3rem)] bg-white rounded-2xl shadow-2xl z-50 hidden no-print border border-slate-200 overflow-hidden flex flex-col" style="height: 500px;">
+        <div class="bg-indigo-600 text-white p-4 flex justify-between items-center">
+            <div class="flex items-center gap-2"><i class="fas fa-robot"></i><span class="font-bold">Portfolio Agent</span></div>
+            <button onclick="toggleAgentChat()" class="hover:bg-indigo-500 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="agent-chat-history" class="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50">
+            <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 text-indigo-600"><i class="fas fa-robot text-sm"></i></div>
+                <div class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm border text-sm text-slate-600 max-w-[80%]">Hello! I am your assistant. Try asking <strong>"What am I missing?"</strong> or <strong>"What's next?"</strong></div>
+            </div>
+        </div>
+        <div class="p-3 border-t bg-white">
+            <form onsubmit="sendAgentMessage(event)" class="flex gap-2">
+                <input type="text" id="agent-input" placeholder="Ask about your progress..." class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 transition-colors"><i class="fas fa-paper-plane"></i></button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIG & DATA ---
+        try { if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister())); } catch (e) { }
+
+        const moduleConfigs = [
+            { id: 'surgery', name: 'Surgery (Module 1)', color: 'bg-green-700', text: 'text-green-700', border: 'border-green-700', duration: '9 months', weeks: [{ id: 'w1', title: 'Trauma Assessment & Shock' }, { id: 'w2', title: 'Antibiotics & Pre-op Prep' }, { id: 'w3', title: 'Instruments & Sterilization' }, { id: 'w4', title: 'Theatre Setup' }, { id: 'w5', title: 'Acute Pain' }, { id: 'w6', title: 'Chronic Pain' }, { id: 'w7', title: 'Wounds & Suturing' }, { id: 'w8', title: 'Transfer Principles' }, { id: 'w9', title: 'Pyomyositis & Osteo' }, { id: 'w10', title: 'Chest Drains' }, { id: 'w11', title: 'Closed Fractures' }, { id: 'w12', title: 'Neurovascular' }, { id: 'w13', title: 'Dental/Airway Infections' }, { id: 'w14', title: 'Abscesses' }, { id: 'w15', title: 'Appendicitis' }, { id: 'w16', title: 'Laparotomy Basics' }, { id: 'w17', title: 'Gut Repair' }, { id: 'w18', title: 'Stomas & Ulcers' }, { id: 'w19', title: 'Bowel Obstruction' }, { id: 'w20', title: 'Casting & Splinting' }], assignmentList: [{ title: '1. Cancer Pathophysiology', prompt: 'Staging in rural contexts.' }, { title: '2. Cancer Screening', prompt: 'Pros/cons of screening.' }, { title: '3. Blood Transfusion', prompt: 'Risks and safety.' }], requiredProcedures: [{ name: 'Chest drain insertion', target: 5 }, { name: 'Debridement of wound', target: 3 }, { name: 'Appendicectomy', target: 3 }, { name: 'Hernia Repair', target: 3 }, { name: 'Skin Graft', target: 3 }] },
+            { id: 'anaesthesia', name: 'Anaesthesiology (Module 2)', color: 'bg-slate-700', text: 'text-slate-700', border: 'border-slate-700', duration: '4 months', weeks: [{ id: 'w1', title: 'Machine Check' }, { id: 'w2', title: 'Ketamine' }, { id: 'w3', title: 'Propofol' }, { id: 'w4', title: 'Pre-op' }, { id: 'w5', title: 'Opiates' }, { id: 'w6', title: 'Chronic Pain' }], caseReports: ['General anaesthesia with paralysis', 'Regional anaesthesia', 'Sepsis with haemodynamic instability'], assignmentList: [{ title: 'Surgeon as anaesthetist', prompt: 'Problems and solutions (1500 words)' }], requiredProcedures: [{ name: 'Adult intubation', target: 10 }, { name: 'Spinal (pregnant)', target: 10 }, { name: 'Ketamine', target: 10 }, { name: 'CPR', target: 3 }] },
+            { id: 'childhealth', name: 'Child Health (Module 3)', color: 'bg-orange-500', text: 'text-orange-500', border: 'border-orange-500', duration: '1 month', weeks: [{ id: 'w1', title: 'Milestones & Malnutrition' }, { id: 'w2', title: 'Pneumonia' }, { id: 'w3', title: 'Cardiac' }], caseReports: ['Severe malaria', 'Meningitis', 'Severe Malnutrition'], assignmentList: [{ title: '1. Severe Malnutrition', prompt: 'WHO recommendations.' }], requiredProcedures: [{ name: 'Neonatal resuscitation', target: 4 }, { name: 'IV access (child <5)', target: 5 }] },
+            { id: 'obs_gyn', name: 'Obs & Gynae (Module 4)', color: 'bg-pink-500', text: 'text-pink-500', border: 'border-pink-500', duration: '3 months', weeks: [{ id: 'w1', title: 'Menstrual Cycle' }, { id: 'w2', title: 'Contraception' }, { id: 'w3', title: 'Antenatal' }], caseReports: ['Failure to progress', 'PPH', 'Ectopic pregnancy'], assignmentList: [{ title: '1. Family Planning', prompt: 'Rural difficulties.' }], requiredProcedures: [{ name: 'Caesarean section', target: 6 }, { name: 'Breech delivery', target: 5 }] },
+            { id: 'medicine', name: 'Internal Medicine (Module 5)', color: 'bg-blue-600', text: 'text-blue-600', border: 'border-blue-600', duration: '2 months', weeks: [{ id: 'w1', title: 'Diabetes' }, { id: 'w2', title: 'Sepsis' }, { id: 'w3', title: 'TB' }], caseReports: ['Severe malaria', 'MI', 'TB'], assignmentList: [{ title: '1. Chronic Respiratory', prompt: 'District management.' }], requiredProcedures: [{ name: 'Lumbar puncture', target: 2 }, { name: 'ECG', target: 4 }] },
+            { id: 'psychiatry', name: 'Psychiatry (Module 6)', color: 'bg-purple-500', text: 'text-purple-500', border: 'border-purple-500', duration: '1 month', caseReports: ['Acute Psychosis'], requiredProcedures: [] },
+            { id: 'publichealth', name: 'Public Health (Module 7)', color: 'bg-teal-500', text: 'text-teal-500', border: 'border-teal-500', duration: 'Longitudinal', assignmentList: [{ title: 'District Health Report', prompt: 'Analysis of geography.' }], requiredProcedures: [] },
+            { id: 'eye_ent', name: 'Eye/ENT (Module 8)', color: 'bg-cyan-500', text: 'text-cyan-500', border: 'border-cyan-500', duration: '1 month', caseReports: ['Perforating eye injury'], requiredProcedures: [{ name: 'Foreign body removal', target: 2 }] },
+            { id: 'lab', name: 'Laboratory (Module 9)', color: 'bg-indigo-500', text: 'text-indigo-500', border: 'border-indigo-500', duration: '1 month', assignmentList: [{ title: 'Skill: Cross-match', prompt: 'Competency.' }], requiredProcedures: [{ name: 'Blood grouping', target: 4 }] },
+            { id: 'management', name: 'Management (Module 10)', color: 'bg-slate-600', text: 'text-slate-600', border: 'border-slate-600', duration: '4 weeks', assignmentList: [{ title: 'Management Systems', prompt: 'Evaluate authority.' }], requiredProcedures: [] }
+        ];
+
+        const milestoneConfigs = {
+            research: [{ id: 'res_topic', label: 'Topic Approved' }, { id: 'res_data', label: 'Data Collected' }],
+            exams: [{ id: 'exam_part1', label: 'Part 1 Passed' }, { id: 'exam_part2', label: 'Part 2 Passed' }]
+        };
+
+        // --- AGENT LOGIC ---
+        class PortfolioAgent {
+            constructor(stateRef) { this.state = stateRef; }
+            async ask(query) {
+                query = query.toLowerCase().trim();
+                if (query.includes('missing') || query.includes('need')) return this.analyzeMissing();
+                if (query.includes('progress') || query.includes('summary')) return this.generateSummary();
+                if (query.includes('focus') || query.includes('next')) return this.suggestNextSteps();
+                return this.getContextualTip();
+            }
+            analyzeMissing() {
+                const activeModule = this.state.activeTab;
+                const config = moduleConfigs.find(m => m.id === activeModule);
+                if (!config || !config.requiredProcedures) {
+                    let totalMissing = 0; let criticalMissing = [];
+                    moduleConfigs.forEach(m => { if (m.requiredProcedures) m.requiredProcedures.forEach(p => { const count = this.state.procedureLog.filter(l => l.moduleId === m.id && l.procedure === p.name).length; if (count < p.target) { totalMissing++; if (p.target >= 5 && count === 0) criticalMissing.push(`${p.name} (${m.name.split(' ')[0]})`); } }); });
+                    return { type: 'alert', title: 'Gaps Found', body: `You have **${totalMissing}** pending types.\n\n**Start with:**\n- ${criticalMissing.slice(0, 3).join('\n- ')}` };
+                }
+                let missing = []; config.requiredProcedures.forEach(p => { const count = this.state.procedureLog.filter(l => l.moduleId === activeModule && l.procedure === p.name).length; if (count < p.target) missing.push({ name: p.name, needed: p.target - count }); });
+                if (missing.length === 0) return { type: 'success', title: 'All Done!', body: `Completed all for **${config.name}**!` };
+                return { type: 'list', title: `Missing in ${config.name}`, body: `You need to log **${missing.length}** types:`, items: missing.sort((a, b) => b.needed - a.needed).slice(0, 5).map(m => `${m.name} (Need ${m.needed})`) };
+            }
+            generateSummary() { const total = this.state.procedureLog.length; return { type: 'report', title: 'Snapshot', body: `**Logs:** ${total}\n**Year:** ${this.state.account.year}` }; }
+            suggestNextSteps() { return { type: 'action', title: 'Focus Area', body: `Check **Surgery** module.` }; }
+            getContextualTip() { if (this.state.activeTab === 'dashboard') return this.generateSummary(); return { type: 'info', body: "Try asking 'What am I missing?'" }; }
+        }
+
+        // --- STATE MANAGEMENT ---
+        class AppState {
+            constructor() {
+                this.account = null; this.modules = {}; this.procedureLog = []; this.milestones = {}; this.activeTab = 'dashboard'; this.listeners = []; this._loginHandled = false; this.driveToken = null; this.driveFolders = {};
+                moduleConfigs.forEach(m => { this.modules[m.id] = { assignments: {}, weeks: {}, caseReports: {}, rotations: [] }; });
+                this.initFirebase(); this.loadData();
+            }
+            initFirebase() {
+                const firebaseConfig = { apiKey: "AIzaSyBhEln9kmgq22NnNHI83eUH7_d6S4F1O5s", authDomain: "rural-mmed-logbook-3e095.firebaseapp.com", projectId: "rural-mmed-logbook-3e095", storageBucket: "rural-mmed-logbook-3e095.firebasestorage.app", messagingSenderId: "826477177641", appId: "1:826477177641:web:fe9de6e733b442fdffe538" };
+                try {
+                    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                    window.auth = firebase.auth(); window.db = firebase.firestore();
+                    if (!window.auth.currentUser) window.auth.getRedirectResult().then(result => { if (result.user) { if (result.credential) this.driveToken = result.credential.accessToken; this.handleCloudLogin(result.user); } }).catch(e => console.error("Redirect Error:", e));
+                    window.auth.onAuthStateChanged(user => { if (user) this.handleCloudLogin(user); else { this.account = null; this.notify(); } });
+                } catch (e) { console.error("Firebase Init Failed", e); const stored = localStorage.getItem('mmed_tracker_v2_cloud'); if (stored) this.account = JSON.parse(stored).account; }
+            }
+            async handleCloudLogin(user) {
+                if (this._loginHandled && this.account && this.account.id === user.uid) return; this._loginHandled = true;
+                const loading = document.getElementById('loading'); if (loading) loading.style.display = 'flex';
+                try {
+                    const doc = await window.db.collection('users').doc(user.uid).get(); const cloudData = doc.exists ? doc.data() : {};
+                    this.account = { name: cloudData.account?.name || user.displayName || "Dr. Trainee", email: user.email, id: user.uid, year: cloudData.account?.year || 1, location: cloudData.account?.location || "General Hospital" };
+                    if (cloudData.modules) this.modules = cloudData.modules; if (cloudData.procedureLog) this.procedureLog = cloudData.procedureLog; if (cloudData.milestones) this.milestones = cloudData.milestones;
+                    this.saveData(true);
+                } catch (e) { console.error("Sync Error", e); this.account = { name: user.displayName || "Dr. User", email: user.email, id: user.uid, year: 1 }; }
+                finally { if (loading) loading.style.display = 'none'; this.notify(); if (document.getElementById('login-container')) document.getElementById('login-container').classList.add('hidden'); if (document.getElementById('main-layout')) document.getElementById('main-layout').classList.remove('hidden'); }
+            }
+            async driveApiFetch(url, options = {}) { if (!this.driveToken) return null; const resp = await fetch(url, { ...options, headers: { 'Authorization': `Bearer ${this.driveToken}`, ...(options.headers || {}) } }); if (!resp.ok) { if (resp.status === 401) this.driveToken = null; return null; } return resp; }
+            async ensureDriveFolder(name, parentId = null) { let q = `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`; if (parentId) q += ` and '${parentId}' in parents`; const searchResp = await this.driveApiFetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&spaces=drive`); if (searchResp) { const data = await searchResp.json(); if (data.files && data.files.length > 0) return data.files[0].id; } const meta = { name, mimeType: 'application/vnd.google-apps.folder' }; if (parentId) meta.parents = [parentId]; const createResp = await this.driveApiFetch('https://www.googleapis.com/drive/v3/files', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(meta) }); if (createResp) { const folder = await createResp.json(); return folder.id; } return null; }
+            async initDriveFolders(moduleId) { if (!this.driveToken) return null; if (!this.driveFolders.root) { this.driveFolders.root = await this.ensureDriveFolder('MMed Portfolio'); if (!this.driveFolders.root) return null; } if (!this.driveFolders[moduleId]) { const config = moduleConfigs.find(m => m.id === moduleId); this.driveFolders[moduleId] = await this.ensureDriveFolder(config ? config.name.split(' (')[0] : moduleId, this.driveFolders.root); } return this.driveFolders[moduleId]; }
+            async uploadToDrive(file, moduleId) { const folderId = await this.initDriveFolders(moduleId); if (!folderId) return null; const metadata = { name: file.name, parents: [folderId] }; const form = new FormData(); form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' })); form.append('file', file); const resp = await this.driveApiFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', { method: 'POST', body: form }); if (resp) return await resp.json(); return null; }
+            async listDriveFiles(moduleId) { const folderId = this.driveFolders[moduleId]; if (!folderId || !this.driveToken) return []; const q = `'${folderId}' in parents and trashed=false`; const resp = await this.driveApiFetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,webViewLink)&spaces=drive`); if (resp) { const data = await resp.json(); return data.files || []; } return []; }
+            loadData() { try { const stored = localStorage.getItem('mmed_tracker_v2_cloud'); if (stored && stored !== "null") { const data = JSON.parse(stored); if (data) { if (data.account) this.account = data.account; if (data.modules) this.modules = data.modules; if (data.procedureLog) this.procedureLog = data.procedureLog; if (data.milestones) this.milestones = data.milestones; } } } catch (e) { } }
+            saveData(skipCloud = false) { const data = { account: this.account, modules: this.modules, procedureLog: this.procedureLog, milestones: this.milestones }; localStorage.setItem('mmed_tracker_v2_cloud', JSON.stringify(data)); if (!skipCloud && this.account && window.db) { clearTimeout(this._saveTimeout); this._saveTimeout = setTimeout(() => { window.db.collection('users').doc(this.account.id).set(data, { merge: true }).catch(e => console.error("Save error", e)); }, 1500); } this.notify(); }
+            signInGoogle() { const provider = new firebase.auth.GoogleAuthProvider(); provider.addScope('https://www.googleapis.com/auth/drive.file'); window.auth.signInWithPopup(provider).then(r => { if (r.credential) this.driveToken = r.credential.accessToken; this.handleCloudLogin(r.user); }).catch(e => window.auth.signInWithRedirect(provider)); }
+            signInEmail() { const e = document.getElementById('login-email').value.trim(); const p = document.getElementById('login-password').value; const errorEl = document.getElementById('login-error'); errorEl.classList.add('hidden'); if (!e || !p) { errorEl.textContent = "Enter email/password"; errorEl.classList.remove('hidden'); return; } const isSignUp = this._isSignUpMode; if (isSignUp) { const cp = document.getElementById('login-confirm-password').value; if (p !== cp) { errorEl.textContent = "Passwords mismatch"; errorEl.classList.remove('hidden'); return; } window.auth.createUserWithEmailAndPassword(e, p).then(r => { const dn = document.getElementById('login-name').value.trim(); if (dn) r.user.updateProfile({ displayName: dn }); this.handleCloudLogin(r.user); }).catch(err => { errorEl.textContent = err.message; errorEl.classList.remove('hidden'); }); } else { window.auth.signInWithEmailAndPassword(e, p).catch(err => { errorEl.textContent = err.message; errorEl.classList.remove('hidden'); }); } }
+            logout() { this._loginHandled = false; if (window.auth) window.auth.signOut(); this.account = null; localStorage.removeItem('mmed_tracker_v2_cloud'); location.reload(); }
+            exportData() { this.saveData(true); const dataStr = localStorage.getItem('mmed_tracker_v2_cloud'); const blob = new Blob([dataStr || "{}"], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'mmed_backup.json'; a.click(); URL.revokeObjectURL(url); }
+            async backupToDrive() { try { document.getElementById('backupModal').classList.add('hidden'); document.getElementById('loading').classList.remove('hidden'); if (!this.driveToken) this.driveToken = await (async () => { const p = new firebase.auth.GoogleAuthProvider(); p.addScope('https://www.googleapis.com/auth/drive.file'); return (await window.auth.signInWithPopup(p)).credential.accessToken; })(); if (!this.driveToken) throw new Error('No token'); const fid = await this.ensureDriveFolder('MMed Portfolio'); if (!fid) throw new Error('No folder'); this.saveData(true); const ds = localStorage.getItem('mmed_tracker_v2_cloud'); const m = { name: 'backup.json', parents: [fid], mimeType: 'application/json' }; const f = new FormData(); f.append('metadata', new Blob([JSON.stringify(m)], { type: 'application/json' })); f.append('file', new Blob([ds], { type: 'application/json' })); const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', headers: { 'Authorization': `Bearer ${this.driveToken}` }, body: f }); if (!resp.ok) throw new Error(await resp.text()); document.getElementById('loading').classList.add('hidden'); alert('Backup successful!'); } catch (err) { document.getElementById('loading').classList.add('hidden'); alert('Backup Failed: ' + err.message); } }
+            importData() { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.onchange = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => { try { const data = JSON.parse(ev.target.result); if (confirm('Restore backup?')) { if (data.account) this.account = data.account; if (data.modules) this.modules = data.modules; if (data.procedureLog) this.procedureLog = data.procedureLog; if (data.milestones) this.milestones = data.milestones; this.saveData(); renderApp(); } } catch (err) { alert('Invalid file'); } }; reader.readAsText(file); }; input.click(); }
+            setTab(tab) { this.activeTab = tab; if (window.innerWidth <= 768) toggleSidebar(); this.notify(); }
+            updateModuleData(moduleId, type, id, value) { if (type === 'week') { if (!this.modules[moduleId].weeks[id]) this.modules[moduleId].weeks[id] = {}; if (typeof value === 'object') this.modules[moduleId].weeks[id] = { ...this.modules[moduleId].weeks[id], ...value }; else this.modules[moduleId].weeks[id].status = value; } else if (type === 'assignment') { if (!this.modules[moduleId].assignments[id]) this.modules[moduleId].assignments[id] = {}; this.modules[moduleId].assignments[id] = { ...this.modules[moduleId].assignments[id], ...value }; } else if (type === 'caseReport') { this.modules[moduleId].caseReports[id] = value; } this.saveData(); }
+            addRotation(moduleId) { if (!this.modules[moduleId].rotations) this.modules[moduleId].rotations = []; this.modules[moduleId].rotations.push({ location: '', startDate: '', endDate: '' }); this.saveData(); }
+            updateRotation(moduleId, index, field, value) { if (!this.modules[moduleId].rotations) return; this.modules[moduleId].rotations[index][field] = value; this.saveData(); }
+            deleteRotation(moduleId, index) { if (!this.modules[moduleId].rotations) return; if (confirm('Delete rotation?')) { this.modules[moduleId].rotations.splice(index, 1); this.saveData(); } }
+            addProcedure(data) { this.procedureLog.push({ ...data, timestamp: Date.now() }); this.saveData(); }
+            updateMilestone(category, id, value, date) { if (!this.milestones[category]) this.milestones[category] = {}; this.milestones[category][id] = { status: value, date: date }; this.saveData(); }
+            notify() { this.listeners.forEach(l => l()); }
+            subscribe(l) { this.listeners.push(l); }
+        }
+
+        const state = new AppState();
+        const agent = new PortfolioAgent(state);
+        function esc(str) { const el = document.createElement('span'); el.textContent = str || ''; return el.innerHTML; }
+
+        // --- AGENT UI FUNCTIONS ---
+        function toggleAgentChat() { const win = document.getElementById('agent-window'); win.classList.toggle('hidden'); if (!win.classList.contains('hidden')) document.getElementById('agent-input').focus(); }
+        async function sendAgentMessage(e) {
+            e.preventDefault(); const input = document.getElementById('agent-input'); const query = input.value.trim(); if (!query) return;
+            const history = document.getElementById('agent-chat-history');
+            history.innerHTML += `<div class="flex gap-3 justify-end"><div class="bg-indigo-600 text-white p-3 rounded-lg rounded-tr-none shadow-sm text-sm max-w-[80%]">${esc(query)}</div></div>`;
+            input.value = '';
+            const thinkingId = 'think-' + Date.now();
+            history.innerHTML += `<div id="${thinkingId}" class="flex gap-3"><div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 text-indigo-600"><i class="fas fa-robot text-sm"></i></div><div class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm border text-sm text-slate-400 italic">Analyzing...</div></div>`;
+            history.scrollTop = history.scrollHeight;
+            setTimeout(() => { const response = agent.ask(query); document.getElementById(thinkingId).remove(); const responseHtml = formatAgentResponse(response); history.innerHTML += responseHtml; history.scrollTop = history.scrollHeight; }, 600);
+        }
+        function formatAgentResponse(res) { let bodyHtml = res.body.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-800">$1</strong>').replace(/\n/g, '<br>'); let itemsHtml = res.items ? `<ul class="mt-2 space-y-1 text-slate-600">${res.items.map(i => `<li class="flex items-start gap-2"><i class="fas fa-angle-right text-indigo-400 mt-1 text-xs"></i> ${i}</li>`).join('')}</ul>` : ''; return `<div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 text-indigo-600"><i class="fas fa-robot text-sm"></i></div><div class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm border text-sm text-slate-600 max-w-[85%]">${res.title ? `<div class="font-bold text-slate-800 mb-1">${res.title}</div>` : ''}<div>${bodyHtml}</div>${itemsHtml}</div></div>`; }
+
+        // --- UI RENDERING ---
+        function renderSidebarLinks() { const container = document.getElementById('module-nav-links'); container.innerHTML = moduleConfigs.map(m => `<button onclick="state.setTab('${m.id}')" id="tab-${m.id}" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-sm text-left truncate"><div class="w-3 h-3 rounded-full ${m.color}"></div><span class="truncate">${m.name.split(' (')[0]}</span></button>`).join(''); document.querySelectorAll('aside button').forEach(btn => { btn.classList.remove('bg-slate-800', 'text-white', 'border-l-4', 'border-teal-500'); if (btn.id === `tab-${state.activeTab}`) btn.classList.add('bg-slate-800', 'text-white', 'border-l-4', 'border-teal-500', 'pl-2'); }); }
+        function renderDashboard() { return `<div class="mb-8"><h1 class="text-3xl font-bold text-slate-800">Welcome, ${esc(state.account.name)}</h1><p class="text-slate-500">Year ${state.account.year}</p></div><div class="bg-white rounded-xl shadow-sm border p-6 mb-8"><h3 class="font-bold mb-4">Profile</h3><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><input type="text" value="${esc(state.account.name || '')}" onchange="state.account.name=this.value; state.saveData();" class="w-full border rounded p-2"><select onchange="state.account.year=parseInt(this.value); state.saveData();" class="w-full border rounded p-2">${[1, 2, 3, 4, 5, 6].map(y => `<option value="${y}" ${state.account.year === y ? 'selected' : ''}>Year ${y}</option>`).join('')}</select><input type="text" value="${esc(state.account.location || '')}" onchange="state.account.location=this.value; state.saveData();" class="w-full border rounded p-2" placeholder="Location"></div></div>`; }
+        function renderMilestones() { return `<div class="mb-8"><h1 class="text-3xl font-bold">Milestones</h1></div><div class="space-y-6">${Object.keys(milestoneConfigs).map(cat => `<div class="bg-white rounded-xl shadow-sm border overflow-hidden"><button onclick="toggleSection(this)" class="w-full px-6 py-4 border-b bg-slate-50 flex justify-between items-center cursor-pointer hover:bg-slate-100"><div class="flex items-center gap-3"><i class="fas fa-chevron-down text-slate-400 text-xs section-chevron"></i><h3 class="font-bold uppercase text-sm">${cat}</h3></div></button><div class="divide-y">${milestoneConfigs[cat].map(m => { const mData = state.milestones[cat] && state.milestones[cat][m.id] ? state.milestones[cat][m.id] : {}; const isDone = mData.status === 'Done'; return `<div class="p-4 flex justify-between items-center gap-4 ${isDone ? 'bg-green-50' : ''}"><span class="font-semibold">${m.label}</span><select onchange="state.updateMilestone('${cat}','${m.id}',this.value, '')" class="border rounded-lg px-3 py-1.5 text-sm font-medium ${isDone ? 'bg-green-600 text-white border-green-600' : 'bg-white'}"><option value="Not Started" ${!isDone ? 'selected' : ''}>Pending</option><option value="Done" ${isDone ? 'selected' : ''}>Done</option></select></div>`; }).join('')}</div></div>`).join('')}</div>`; }
+        function renderMasterLogbook() { return `<div class="mb-8"><h1 class="text-3xl font-bold">Master Logbook</h1></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6">${moduleConfigs.filter(m => m.requiredProcedures && m.requiredProcedures.length > 0).map(m => { const metCount = m.requiredProcedures.filter(req => state.procedureLog.filter(p => p.moduleId === m.id && p.procedure === req.name).length >= req.target).length; const totalReq = m.requiredProcedures.length; return `<div class="bg-white rounded-xl shadow-sm border overflow-hidden"><button onclick="toggleSection(this)" class="w-full px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 border-b text-left"><div class="flex items-center gap-3"><i class="fas fa-chevron-down text-slate-400 text-xs section-chevron"></i><h3 class="font-bold ${m.text}">${m.name}</h3></div><span class="text-xs font-bold px-2 py-0.5 rounded-full ${metCount === totalReq ? 'bg-green-100 text-green-700' : 'bg-slate-200'}">${metCount}/${totalReq}</span></button><div class="p-6"><div class="space-y-3">${m.requiredProcedures.map(req => { const count = state.procedureLog.filter(p => p.moduleId === m.id && p.procedure === req.name).length; const isDone = count >= req.target; return `<div class="text-sm"><div class="flex justify-between mb-1"><span class="font-medium">${req.name}</span><span class="font-bold">${count}/${req.target}</span></div><div class="w-full bg-slate-100 rounded-full h-1.5"><div class="h-1.5 rounded-full ${isDone ? 'bg-green-500' : 'bg-teal-500'}" style="width: ${Math.min(100, Math.round((count/req.target)*100))}%"></div></div></div>`; }).join('')}</div></div></div>`; }).join('')}</div>`; }
+
+        function renderModuleDetail(moduleId) {
+            const config = moduleConfigs.find(m => m.id === moduleId);
+            const data = state.modules[moduleId] || { assignments: {}, weeks: {}, caseReports: {} };
+            const logs = state.procedureLog.filter(p => p.moduleId === moduleId);
+
+            // Rotation Logic
+            const rotations = (data.rotations || []).map((r, i) => ({ ...r, _idx: i }));
+            const calcDuration = (s, e) => { if (!s || !e) return ''; const d = Math.ceil((new Date(e) - new Date(s)) / 86400000); return d < 7 ? d + ' days' : Math.round(d / 7) + ' weeks'; };
+            const renderRotationCard = (r, isCompleted) => { const dur = calcDuration(r.startDate, r.endDate); return `<div class="p-4 rounded-lg border ${isCompleted ? 'border-green-200 bg-green-50/50' : 'border-slate-200 bg-slate-50'} relative group"><button onclick="state.deleteRotation('${moduleId}', ${r._idx})" class="absolute top-2 right-2 text-rose-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 text-xs"><i class="fas fa-trash"></i></button><div class="grid grid-cols-1 md:grid-cols-4 gap-3"><input type="text" value="${esc(r.location || '')}" onchange="state.updateRotation('${moduleId}', ${r._idx}, 'location', this.value)" placeholder="Hospital" class="w-full text-sm border rounded-lg px-3 py-2 bg-white"><input type="date" value="${r.startDate || ''}" onchange="state.updateRotation('${moduleId}', ${r._idx}, 'startDate', this.value)" class="w-full text-sm border rounded-lg px-3 py-2 bg-white"><input type="date" value="${r.endDate || ''}" onchange="state.updateRotation('${moduleId}', ${r._idx}, 'endDate', this.value)" class="w-full text-sm border rounded-lg px-3 py-2 bg-white"><div class="flex items-end">${dur ? `<span class="text-sm font-bold ${isCompleted ? 'text-green-700' : 'text-teal-700'} bg-white border rounded-lg px-3 py-2 w-full text-center">${dur}</span>` : ''}</div></div></div>`; };
+
+            // Docs Logic
+            const fileInputHtml = `<input type="file" id="file-input-${moduleId}" class="hidden" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleDocUpload(this.files, '${moduleId}'); this.value=''">`;
+            const dropZoneHtml = `<div onclick="document.getElementById('file-input-${moduleId}').click()" class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center mb-4 hover:border-teal-400 cursor-pointer"><i class="fas fa-cloud-upload-alt text-3xl text-slate-300 mb-2"></i><p class="text-sm font-semibold text-slate-500">Drop files or <span class="text-teal-600 underline">browse</span></p></div>${fileInputHtml}`;
+
+            return `
+            <div class="${config.color} rounded-2xl p-8 text-white mb-8 shadow-md"><h1 class="text-3xl font-bold tracking-tight">${config.name}</h1><div class="flex gap-4 mt-3 text-white/80 text-sm font-medium"><span><i class="far fa-clock mr-1"></i> ${config.duration}</span></div></div>
+            
+            <!-- Rotations -->
+            <div class="bg-white rounded-xl shadow-sm border mb-6 no-print overflow-hidden"><button onclick="toggleSection(this)" class="w-full px-6 py-4 border-b bg-slate-50 flex justify-between items-center cursor-pointer hover:bg-slate-100"><div class="flex items-center gap-3"><i class="fas fa-chevron-down text-slate-400 text-xs section-chevron"></i><h3 class="text-lg font-bold text-slate-800"><i class="fas fa-map-marker-alt text-teal-600 mr-2"></i>Rotations</h3></div></button><div class="p-6">${rotations.map(r => renderRotationCard(r, r.endDate && r.endDate < new Date().toISOString().split('T')[0])).join('')}<button onclick="state.addRotation('${moduleId}')" class="w-full py-2.5 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-teal-400 hover:text-teal-600 mt-4 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Add Rotation</button></div></div>
+
+            <!-- Documents -->
+            <div class="bg-white rounded-xl shadow-sm border mb-6 no-print overflow-hidden"><button onclick="toggleSection(this)" class="w-full px-6 py-4 border-b bg-slate-50 flex justify-between items-center cursor-pointer hover:bg-slate-100"><div class="flex items-center gap-3"><i class="fas fa-chevron-down text-slate-400 text-xs section-chevron"></i><h3 class="text-lg font-bold text-slate-800"><i class="fas fa-folder-open text-amber-500 mr-2"></i>Documents</h3></div></button><div class="p-6">${dropZoneHtml}<div id="doc-list-${moduleId}" class="space-y-2"></div></div></div>
+
+            ${config.weeks ? (() => {
+                const completedCount = config.weeks.filter(w => ((data.weeks && data.weeks[w.id]) || {}).status === 'Completed').length;
+                const totalWeeks = config.weeks.length;
+                return `<div class="bg-white rounded-xl shadow-sm border mb-8 overflow-hidden"><button onclick="toggleSection(this)" class="w-full px-6 py-4 border-b bg-slate-50 flex justify-between items-center cursor-pointer hover:bg-slate-100"><div class="flex items-center gap-3"><i class="fas fa-chevron-down text-slate-400 text-xs section-chevron"></i><h3 class="text-lg font-bold text-slate-800">Weekly Schedule</h3></div><span class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-600">${completedCount}/${totalWeeks}</span></button><div class="divide-y">${config.weeks.map(w => { const wData = (data.weeks && data.weeks[w.id]) || {}; const wStatus = wData.status || 'Not Started'; return `<div class="p-4 flex justify-between items-center hover:bg-slate-50"><div><span class="text-xs font-bold ${config.text}">${w.id.toUpperCase()}</span> <span class="font-medium text-slate-800 ml-2">${w.title}</span></div><select onchange="state.updateModuleData('${moduleId}','week','${w.id}',{status:this.value})" class="text-xs font-bold border rounded-lg px-3 py-1.5 ${wStatus === 'Completed' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-600'}"><option value="Not Started" ${wStatus === 'Not Started' ? 'selected' : ''}>Pending</option><option value="Completed" ${wStatus === 'Completed' ? 'selected' : ''}>Done</option></select></div>`; }).join('')}</div></div>`;
+            })() : ''}
+
+            ${(config.caseReports || config.assignmentList) ? `
+            <div class="grid grid-cols-1 ${config.caseReports && config.assignmentList ? 'lg:grid-cols-2' : ''} gap-8 mb-8">
+                ${config.caseReports ? `
+                    <div class="bg-white rounded-xl shadow-sm border overflow-hidden self-start">
+                        <button onclick="toggleSection(this)" class="w-full px-6 py-4 border-b bg-slate-50 flex items-center gap-3 cursor-pointer hover:bg-slate-100"><i class="fas fa-chevron-down text-slate-400 text-xs section-chevron"></i><h3 class="text-lg font-bold text-slate-800">Case Reports</h3></button>
+                        <div class="p-6 space-y-2">
+                            ${config.caseReports.map((cr, i) => { const isDone = data.caseReports && data.caseReports['cr_' + i] === 'Done'; return `<button onclick="state.updateModuleData('${moduleId}','caseReport','cr_${i}','${isDone ? '' : 'Done'}')" class="w-full flex items-center justify-between p-3 rounded-lg border transition-all ${isDone ? 'bg-green-50 border-green-200 text-green-800' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-600'}"><span class="font-medium text-sm text-left">${cr}</span><div class="w-5 h-5 rounded border flex items-center justify-center shrink-0 ml-2 ${isDone ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300'}">${isDone ? '<i class="fas fa-check text-xs"></i>' : ''}</div></button>`; }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                ${config.assignmentList ? (() => {
+                    const allAssignments = config.assignmentList.map((a, i) => { const aData = (data.assignments && data.assignments['a_' + i]) || {}; return { i, aData, title: a.title, isDone: !!aData.dateSubmitted }; });
+                    const pending = allAssignments.filter(a => !a.isDone); const done = allAssignments.filter(a => a.isDone);
+                    return `<div class="bg-white rounded-xl shadow-sm border overflow-hidden"><button onclick="toggleSection(this)" class="w-full px-6 py-4 border-b bg-slate-50 flex items-center gap-3 cursor-pointer hover:bg-slate-100"><i class="fas fa-chevron-down text-slate-400 text-xs section-chevron"></i><h3 class="text-lg font-bold text-slate-800">Assignments</h3></button><div class="p-6 space-y-4">${pending.map(a => `<div class="p-4 rounded-lg border border-slate-100 bg-slate-50"><h4 class="font-bold text-sm text-slate-800">${a.title}</h4><div class="grid grid-cols-2 gap-3 mt-3"><div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Started</label><input type="date" value="${a.aData.dateStarted || ''}" onchange="state.updateModuleData('${moduleId}','assignment','a_${a.i}',{dateStarted:this.value})" class="w-full text-xs border rounded p-1.5"></div><div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Submitted</label><input type="date" value="${a.aData.dateSubmitted || ''}" onchange="state.updateModuleData('${moduleId}','assignment','a_${a.i}',{dateSubmitted:this.value})" class="w-full text-xs border rounded p-1.5"></div></div></div>`).join('')}</div></div>`;
+                })() : ''}
+            </div>` : ''}
+
+            <!-- Procedures -->
+            ${config.requiredProcedures ? `<div class="bg-white rounded-xl shadow-sm border mb-8 overflow-hidden"><button onclick="toggleSection(this)" class="w-full px-6 py-4 flex items-center gap-3 cursor-pointer hover:bg-slate-50 border-b text-left"><i class="fas fa-chevron-down text-slate-400 text-xs section-chevron"></i><h3 class="text-lg font-bold text-slate-800">Required Procedures</h3></button><div class="p-6"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${config.requiredProcedures.map(req => { const count = logs.filter(p => p.procedure === req.name).length; const isDone = count >= req.target; return `<div class="border rounded-lg p-3 ${isDone ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}"><div class="flex justify-between items-start mb-1.5"><span class="text-xs font-semibold leading-tight pr-2">${req.name}</span><span class="text-xs font-bold shrink-0 ml-auto">${count}/${req.target}</span></div><div class="w-full bg-slate-200 rounded-full h-1"><div class="${isDone ? 'bg-green-500' : 'bg-teal-500'} h-1 rounded-full transition-all" style="width: ${Math.min(100, Math.round((count/req.target)*100))}%"></div></div></div>`; }).join('')}</div></div></div>` : ''}
+
+            <!-- Log Table -->
+            <div class="bg-white rounded-xl shadow-sm border overflow-hidden mb-12"><button onclick="toggleSection(this)" class="w-full px-6 py-4 border-b bg-slate-50 flex justify-between items-center cursor-pointer hover:bg-slate-100"><div class="flex items-center gap-3"><i class="fas fa-chevron-down text-slate-400 text-xs section-chevron"></i><h3 class="font-bold text-slate-800">Module Log</h3><span class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-200">${logs.length}</span></div></button><div><table class="w-full text-left text-sm"><thead class="bg-slate-50 border-b text-slate-500 uppercase text-xs"><tr><th class="px-6 py-3 font-semibold">Date</th><th class="px-6 py-3 font-semibold">Procedure</th><th class="px-6 py-3 font-semibold">Supervisor</th><th class="px-6 py-3 font-semibold no-print">Actions</th></tr></thead><tbody class="divide-y">${logs.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).map(p => `<tr class="hover:bg-slate-50"><td class="px-6 py-3 text-slate-600">${esc(p.date)}</td><td class="px-6 py-3 font-medium text-slate-800">${esc(p.procedure)}</td><td class="px-6 py-3 text-slate-600">${esc(p.supervisor)}</td><td class="px-6 py-3 no-print"><button onclick="deleteProcedure(${p.timestamp})" class="text-rose-400 hover:text-rose-600 text-xs"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div></div>`;
+        }
+
+        // --- INTERACTION LOGIC ---
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('mobile-overlay').classList.toggle('hidden'); }
+        function toggleSection(btn) { const content = btn.nextElementSibling; if (!content) return; const isCollapsed = btn.classList.toggle('section-collapsed'); content.style.display = isCollapsed ? 'none' : ''; }
+        function deleteProcedure(timestamp) { if (confirm("Delete entry?")) { state.procedureLog = state.procedureLog.filter(p => p.timestamp !== timestamp); state.saveData(); renderApp(); } }
+        function togglePassword(id, btn) { const input = document.getElementById(id); const icon = btn.querySelector('i'); if (input.type === 'password') { input.type = 'text'; icon.classList.replace('fa-eye', 'fa-eye-slash'); } else { input.type = 'password'; icon.classList.replace('fa-eye-slash', 'fa-eye'); } }
+        function toggleAuthMode(e) { if (e) e.preventDefault(); const isSignUp = !state._isSignUpMode; state._isSignUpMode = isSignUp; document.getElementById('signup-name-field').classList.toggle('hidden', !isSignUp); document.getElementById('confirm-password-field').classList.toggle('hidden', !isSignUp); document.getElementById('auth-submit-btn').textContent = isSignUp ? 'Create Account' : 'Sign In'; document.getElementById('login-error').classList.add('hidden'); }
+        window.updateProcList = (moduleId) => { const module = moduleConfigs.find(m => m.id === moduleId); const datalist = document.getElementById('proc-datalist'); if (datalist && module && module.requiredProcedures) datalist.innerHTML = module.requiredProcedures.map(p => `<option value="${p.name}">`).join(''); };
+        function showBackupModal() { document.getElementById('backupModal').classList.remove('hidden'); }
+        function showQuickLogModal() { const modal = document.createElement('div'); modal.className = 'fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center p-4 fade-in'; modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"><div class="px-6 py-4 bg-teal-50 border-b flex justify-between items-center"><h2 class="text-xl font-bold text-teal-800"><i class="fas fa-bolt text-amber-500 mr-2"></i>Quick Log</h2><button onclick="this.closest('.fixed').remove()" class="text-slate-400 text-2xl">&times;</button></div><form onsubmit="event.preventDefault();submitQuickLog(this);" class="p-6 space-y-4"><div class="grid grid-cols-2 gap-4"><select name="module" required onchange="updateProcList(this.value)" class="w-full border rounded-lg px-3 py-2"><option disabled selected>Select Module</option>${moduleConfigs.map(m => `<option value="${m.id}">${m.name.split(' (')[0]}</option>`).join('')}</select><input type="date" name="date" required value="${new Date().toISOString().split('T')[0]}" class="w-full border rounded-lg px-3 py-2"></div><div><label class="block text-sm font-semibold mb-1">Procedure</label><input type="text" id="quickProcName" name="procedure" list="proc-datalist" required class="w-full border rounded-lg px-3 py-2"><datalist id="proc-datalist"></datalist></div><div class="grid grid-cols-2 gap-4"><input type="text" name="location" placeholder="Location" value="${esc(state.account.location || '')}" required class="w-full border rounded-lg px-3 py-2"><input type="text" name="supervisor" placeholder="Supervisor" required class="w-full border rounded-lg px-3 py-2"></div><button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-lg mt-2 shadow-md">Save</button></form></div>`; document.body.appendChild(modal); }
+        window.submitQuickLog = form => { const modId = form.module.value; const procName = form.procedure.value; const modConfig = moduleConfigs.find(m => m.id === modId); const isOther = !modConfig?.requiredProcedures?.some(rp => rp.name === procName); state.addProcedure({ moduleId: modId, date: form.date.value, procedure: procName, location: form.location.value, supervisor: form.supervisor.value, isOther: isOther }); document.querySelector('.fixed.fade-in').remove(); renderApp(); };
+        async function handleDocUpload(files, moduleId) { if (!state.driveToken) { alert('Sign in with Google first.'); return; } for (const file of files) await state.uploadToDrive(file, moduleId); loadDocList(moduleId); }
+        async function loadDocList(moduleId) { const listEl = document.getElementById(`doc-list-${moduleId}`); if (!listEl) return; if (!state.driveToken) { listEl.innerHTML = '<p class="text-sm text-slate-400 text-center py-2">Sign in to view.</p>'; return; } const files = await state.listDriveFiles(moduleId); if (files.length === 0) { listEl.innerHTML = '<p class="text-sm text-slate-400 text-center py-2">No files.</p>'; return; } listEl.innerHTML = files.map(f => `<div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border"><div class="flex items-center gap-3"><i class="fas fa-file text-indigo-500"></i><span class="text-sm font-semibold">${esc(f.name)}</span></div><a href="${f.webViewLink}" target="_blank" class="text-teal-500 hover:text-teal-700 text-sm">View</a></div>`).join(''); }
+
+        // --- RENDERER ---
+        function renderApp() {
+            try {
+                const loginContainer = document.getElementById('login-container'); const mainLayout = document.getElementById('main-layout'); const fab = document.querySelector('button[onclick="showQuickLogModal()"]'); const agentBubble = document.getElementById('agent-bubble');
+                if (!state.account) { if (loginContainer) loginContainer.classList.remove('hidden'); if (mainLayout) mainLayout.classList.add('hidden'); if (fab) fab.classList.add('hidden'); if (agentBubble) agentBubble.classList.add('hidden'); return; }
+                if (loginContainer) loginContainer.classList.add('hidden'); if (mainLayout) mainLayout.classList.remove('hidden'); if (fab) fab.classList.remove('hidden'); if (agentBubble) agentBubble.classList.remove('hidden');
+                renderSidebarLinks();
+                const container = document.getElementById('app-container');
+                if (state.activeTab === 'dashboard') container.innerHTML = renderDashboard(); else if (state.activeTab === 'milestones') container.innerHTML = renderMilestones(); else if (state.activeTab === 'master_logbook') container.innerHTML = renderMasterLogbook(); else container.innerHTML = renderModuleDetail(state.activeTab);
+                if (state.activeTab !== 'dashboard' && state.activeTab !== 'milestones' && state.activeTab !== 'master_logbook') setTimeout(() => loadDocList(state.activeTab), 100);
+                window.scrollTo(0, 0);
+            } catch (error) { console.error(error); document.getElementById('app-container').innerHTML = `<div class="p-8 text-center"><h2 class="text-2xl font-bold text-rose-600">Error</h2><button onclick="localStorage.clear();location.reload();" class="mt-4 bg-rose-600 text-white px-4 py-2 rounded">Reset</button></div>`; }
+        }
+
+        state.subscribe(renderApp);
+        document.addEventListener('DOMContentLoaded', () => { renderApp(); });
+    </script>
+</body>
+</html>
